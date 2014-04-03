@@ -97,7 +97,7 @@ struct subscription_item {
 	struct subscription sub;
 	rimeaddr_t parent;
 	uint8_t cost;
-	timer_t expiry;
+	timer_t t;
 };
 
 struct manuscript {
@@ -112,7 +112,7 @@ struct mware_callbacks {
 	void (*publish) (struct identifier *i, struct manuscript *m);
 };
 
-void mware_bootstrap(uint16_t channel);
+void mware_bootstrap(uint16_t channel, struct mware_callbacks *cb);
 
 void mware_subscribe(uint8_t id, struct subscription *r);
 void mware_publish(struct identifier *i, struct manuscript *m);
