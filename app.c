@@ -56,9 +56,8 @@ PROCESS_THREAD(mware_app, ev, data)
          data == &button_sensor);
     struct subscription s = { .type = MAGNETOMETER,
                               .aggregation = MIN,
-                              .period = 0x56,
-                              .duration = 0x67 }; 
-    mware_subscribe(1, &s);
+                              .period = 0x57 }; 
+    mware_subscribe(1,&s);
   }
   PROCESS_END(); 
 }

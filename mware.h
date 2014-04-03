@@ -58,54 +58,63 @@
 #define PRINT2ADDR(addr) PRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define MWARE_SIZE 10
 enum message {
-  SUBSCRIBE = 0x9,
-  PUBLISH = 0xA,
-  UNSUBSCRIBE = 0xB
-};
-enum sensor {
-  LIGHT = 0x41,
-  MAGNETOMETER = 0x42,
-  ACCELEROMETER = 0x43
+	SUBSCRIBE = 0x9,
+	PUBLISH = 0xA,
+	UNSUBSCRIBE = 0xB
 };
 enum analysis {
-  MAX = 0x5,
-  MIN = 0x6,
-  AVG = 0x7
+	MAX = 0x5,
+	MIN = 0x6,
+	AVG = 0x7
 };
+enum sensor {
+	LIGHT = 0x41,
+	MAGNETOMETER = 0x42,
+	ACCELEROMETER = 0x43
+};
+
+
 struct identifier {
-  rimeaddr_t subscriber;
-  uint8_t id;
+	rimeaddr_t subscriber;
+	uint8_t id;
 };
-struct msg_header {
-  enum message message_type;
-  struct identifier sid;
-};
+
 struct subscription {
-  enum sensor type;
-  enum analysis aggregation;
-  uint8_t period;
-  uint8_t duration;
+	enum sensor type;
+	enum analysis aggregation;
+	uint8_t period;
 };
-struct sub_item {
-  struct sub_item *next;
-  struct identifier id;
-  struct subscription sub;
-  rimeaddr_t parent;
-  uint8_t cost;
+
+struct msg_header {
+	enum message message_type;
+	struct identifier edition;
+	uint8_t hops;
 };
-struct data {
-  uint16_t v1;
-  uint16_t v2;
+
+struct subscription_item {
+	struct subscription_item *next;
+	struct identifier id;
+	struct subscription sub;
+	rimeaddr_t parent;
+	uint8_t cost;
+	timer_t expiry;
+};
+
+struct manuscript {
+	rimeaddr_t next_hop;
+	uint16_t timestamp;
+	uint16_t v1;
+	uint16_t v2;
 };
 
 struct mware_callbacks {
+	void (*sense) (struct identifier *i, struct subscription *r);
+	void (*publish) (struct identifier *i, struct manuscript *m);
 };
 
 void mware_bootstrap(uint16_t channel);
 
-void mware_publish(struct identifier *i, struct data *d);
-
 void mware_subscribe(uint8_t id, struct subscription *r);
-
+void mware_publish(struct identifier *i, struct manuscript *m);
 void mware_unsubscribe(uint8_t id);
 
