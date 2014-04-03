@@ -5,8 +5,7 @@
 #include <string.h>
 
 static struct broadcast_conn connection;
-static timer_t subscription_timer;
-static struct mware_callbacks *callback;
+static const struct mware_callbacks *callback;
 
 static void wind_timer(struct subscription_item *si);
 /*------------Subscription Manager-----------------*/
@@ -16,15 +15,15 @@ MEMB(subscription_memb, struct subscription_item, MWARE_SIZE);
 void
 subscription_init() {
 	list_init(subscription_list);
-	memb_init(subscription_memb);
+	memb_init(&subscription_memb);
 }
 
 struct subscription_item *
 subscription_get(struct identifier * i) {
 	struct subscription_item *si;
 	for (si = list_head(subscription_list);
-		si != NULL; si = list_item_next(it)) {
-		if (memcmp(i,si->id,sizeof(struct identifier)) == 0) {
+		si != NULL; si = list_item_next(si)) {
+		if (memcmp(i,&si->id,sizeof(struct identifier)) == 0) {
 			return si;
 		}
 	}
@@ -32,9 +31,10 @@ subscription_get(struct identifier * i) {
 }
 void
 subscription_parent_refresh(rimeaddr_t  *parent) {
+	struct subscription_item *si;
 	for (si = list_head(subscription_list);
-		si != NULL; si = list_item_next(it)) {
-		if (rimeaddr_cmp(&si->parent, parent) == 0) {
+		si != NULL; si = list_item_next(si)) {
+		if (rimeaddr_cmp(&si->parent, parent) == 1) {
 			wind_timer(si);
 		}
 	}
@@ -43,17 +43,17 @@ struct subscription_item *
 subscription_insert(struct identifier *i, struct subscription *s,
 		rimeaddr_t *parent, uint8_t cost) {
 	struct subscription_item *si;
-	if (si = subscription_get(i)) {
+	if ((si = subscription_get(i))) {
 		if (si->cost < cost) {
 			rimeaddr_copy(&si->parent, parent);
 			si->cost = cost;
-		} else if (rimeaddr_cmp(&si->parent, parent) == 0) {
+		} else if (rimeaddr_cmp(&si->parent, parent) == 1) {
 			si->cost = cost;
 		}
-
+    PRINTF("Subscription Updated\n");
 	}
 	else {
-		si = memb_alloc(subscription_memb);
+		si = memb_alloc(&subscription_memb);
 		if (si == NULL) {
 			return NULL;
 		}
@@ -62,6 +62,7 @@ subscription_insert(struct identifier *i, struct subscription *s,
 		rimeaddr_copy(&si->parent, parent);
 		si->cost = cost;
 		list_add(subscription_list, si);
+    PRINTF("Subscription Added\n");
 	}
 	wind_timer(si);
 	return si;
@@ -74,7 +75,7 @@ subscription_remove(struct identifier *i) {
 	}
 	ctimer_stop(&si->t);
 	list_remove(subscription_list, si);
-	memb_free(subscription_memb, si);
+	memb_free(&subscription_memb, si);
 
 }
 /*----------------------------------------------*/
@@ -101,17 +102,16 @@ print_raw_packetbuf(void)
 void
 packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 {
-	print_raw_packetbuf();
 	struct msg_header *hdr = packetbuf_dataptr();
 	struct subscription_item *si;
 	PRINT2ADDR(&hdr->edition.subscriber);
-	PRINTF("ID: %d ",hdr->edition.id);
+	PRINTF(" ID: %d \n",hdr->edition.id);
 	packetbuf_hdrreduce(sizeof(struct msg_header));
 	switch(hdr->message_type) {
 	case SUBSCRIBE:
 		si = subscription_insert(&hdr->edition,
 				(struct subscription *) packetbuf_dataptr(),
-				from, hdr->hops + 1);
+				(rimeaddr_t *) from, hdr->hops + 1);
 		break;
 	case PUBLISH:
 		si = subscription_get(&hdr->edition);
@@ -133,12 +133,12 @@ mware_service_item(void *p) {
 }
 static void wind_timer(struct subscription_item *si) {
 	if (ctimer_expired(&si->t)) {
-		ctimer_set(&si->t, CLOCK_SECOND, mware_service_item, si);
+		ctimer_set(&si->t, 300*CLOCK_SECOND, mware_service_item, si);
 	}
 }
 /*----------------------------------------------*/
 void
-mware_bootstrap(uint16_t channel, struct mware_callbacks *m) {
+mware_bootstrap(uint16_t channel, const struct mware_callbacks *m) {
 	subscription_init();
 	broadcast_open(&connection, channel, &connection_cb);
 	callback = m;
@@ -149,10 +149,8 @@ mware_subscribe(uint8_t id, struct subscription *s) {
 	struct msg_header hdr = { .message_type = SUBSCRIBE,
 		.hops = 0,
 		.edition = { .id = id }	};
-	struct subscription_item *si;
 	rimeaddr_copy(&hdr.edition.subscriber,&rimeaddr_node_addr);
-	si = subscription_insert(si, s, &rimeaddr_node_addr, 0);
-	wind_timer(si);
+	subscription_insert(&hdr.edition, s, &rimeaddr_node_addr, 0);
 	packetbuf_clear();
 	packetbuf_prepend_hdr(s, sizeof(struct subscription));
 	packetbuf_prepend_hdr(&hdr, sizeof(struct msg_header));

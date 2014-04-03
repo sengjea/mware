@@ -43,21 +43,36 @@
 
 PROCESS(mware_app, "Middleware App");
 AUTOSTART_PROCESSES(&mware_app);
+static void
+sense_callback(struct identifier *i, struct subscription *r) {
+  PRINTF("Sense Called\n");
+}
+static void
+publish_callback(struct identifier *i, struct manuscript *m){
+}
+static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 
 PROCESS_THREAD(mware_app, ev, data)
 {
+  static struct etimer et;
   PROCESS_EXITHANDLER(;)
   PROCESS_BEGIN();
-  PRINTF("Init Complete:\n");
-  mware_bootstrap(128);
+  random_init(rimeaddr_node_addr.u8[0]);
+  mware_bootstrap(128, &mware_cb);
+  PRINTF("Initialised Sensor.\n");
+  //TODO: Initialise random set of available sensors.
+  leds_on(LEDS_GREEN);  
   while (1) {
-    PRINTF("<press button to fire>\n");
-    PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
-         data == &button_sensor);
-    struct subscription s = { .type = MAGNETOMETER,
-                              .aggregation = MIN,
-                              .period = 0x57 }; 
-    mware_subscribe(1,&s);
+    etimer_set(&et, (20 + (random_rand() % (20*2))) * CLOCK_SECOND);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    if (random_rand() % 100 < 5) {
+      leds_on(LEDS_RED);  
+      leds_off(LEDS_GREEN);  
+      etimer_set(&et, (60 + (random_rand() % (60*2))) * CLOCK_SECOND);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    }
+    leds_off(LEDS_RED);  
+    leds_on(LEDS_GREEN);  
   }
   PROCESS_END(); 
 }

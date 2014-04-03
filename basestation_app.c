@@ -52,12 +52,11 @@ static void
 publish_callback(struct identifier *i, struct manuscript *m){
 
 }
-const static struct mware_callbacks mware_cb = { sense_callback, publish_callback };
+static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 PROCESS_THREAD(mware_app, ev, data)
 {
   PROCESS_EXITHANDLER(;)
   PROCESS_BEGIN();
-  PRINTF("Init Complete:\n");
   mware_bootstrap(128, &mware_cb);
   while (1) {
     PRINTF("<press button to fire>\n");

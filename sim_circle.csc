@@ -24,9 +24,9 @@
     <motetype>
       se.sics.cooja.contikimote.ContikiMoteType
       <identifier>mtype361</identifier>
-      <description>TestMote</description>
-      <source>[CONTIKI_DIR]/mware/app.c</source>
-      <commands>make app.cooja TARGET=cooja</commands>
+      <description>Base Station</description>
+      <source>[CONTIKI_DIR]/mware/basestation_app.c</source>
+      <commands>make basestation_app.cooja TARGET=cooja</commands>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
       <moteinterface>se.sics.cooja.interfaces.Battery</moteinterface>
       <moteinterface>se.sics.cooja.contikimote.interfaces.ContikiVib</moteinterface>
