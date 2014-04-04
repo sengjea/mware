@@ -109,7 +109,8 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 	packetbuf_hdrreduce(sizeof(struct msg_header));
 	switch(hdr->message_type) {
 	case SUBSCRIBE:
-		si = subscription_insert(&hdr->edition,
+		si = subscription_get(&hdr->edition);
+    si = subscription_insert(&hdr->edition,
 				(struct subscription *) packetbuf_dataptr(),
 				(rimeaddr_t *) from, hdr->hops + 1);
 		break;
@@ -143,18 +144,25 @@ mware_bootstrap(uint16_t channel, const struct mware_callbacks *m) {
 	broadcast_open(&connection, channel, &connection_cb);
 	callback = m;
 }
-
+void
+broadcast_subscription(struct subscription_item *si) {
+  struct msg_header hdr = { .message_type = SUBSCRIBE,
+                            .hops = si->cost }
+  memcpy(&hdr.edition, si->id, sizeof(struct identifier));  
+	packetbuf_clear();
+	packetbuf_prepend_hdr(&si->sub, sizeof(struct subscription));
+	packetbuf_prepend_hdr(&hdr, sizeof(struct msg_header));
+	broadcast_send(&connection);
+}
 void
 mware_subscribe(uint8_t id, struct subscription *s) {
 	struct msg_header hdr = { .message_type = SUBSCRIBE,
 		.hops = 0,
 		.edition = { .id = id }	};
-	rimeaddr_copy(&hdr.edition.subscriber,&rimeaddr_node_addr);
-	subscription_insert(&hdr.edition, s, &rimeaddr_node_addr, 0);
-	packetbuf_clear();
-	packetbuf_prepend_hdr(s, sizeof(struct subscription));
-	packetbuf_prepend_hdr(&hdr, sizeof(struct msg_header));
-	broadcast_send(&connection);
+  struct identifier i = { .id = id };
+	rimeaddr_copy(&i.subscriber,&rimeaddr_node_addr);
+	struct subscription_item *si = subscription_insert(&i, s, &rimeaddr_node_addr, 0);
+  broadcast_subscription(si);
 }
 
 void
