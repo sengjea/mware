@@ -43,6 +43,8 @@
  * @date 2014-02-27
  */
 
+#ifndef __COLLECT_H__
+#define __MWARE_H__
 #include "contiki.h"
 #include "net/rime.h"
 #include <stddef.h>
@@ -57,64 +59,77 @@
 #define DPRINT2ADDR(addr) DPRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define PRINT2ADDR(addr) PRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define MWARE_SIZE 10
-enum message {
-	SUBSCRIBE = 0x9,
-	PUBLISH = 0xA,
-	UNSUBSCRIBE = 0xB
-};
-enum analysis {
-	MAX = 0x5,
-	MIN = 0x6,
-	AVG = 0x7
-};
-enum sensor {
-	LIGHT = 0x41,
-	MAGNETOMETER = 0x42,
-	ACCELEROMETER = 0x43
-};
-
-
+#define RANDOM_INTERVAL(i) ((i/2)+random_rand()%i)*CLOCK_SECOND 
+#define MWARE_INFINITE_COST 30
+#define MWARE_BEACON_INTERVAL 15
+#define MWARE_SHELFLIFE 120
+#define MWARE_ATTRIBUTES  { PACKETBUF_ATTR_PACKET_TYPE, PACKETBUF_ATTR_BIT* 4}, \
+                          BROADCAST_ATTRIBUTES
 struct identifier {
 	rimeaddr_t subscriber;
-	uint8_t id;
+	uint16_t id;
+};
+
+enum analysis {
+	MAX = 0x1,
+	MIN = 0x2,
+	AVG = 0x3
+};
+
+enum sensor {
+	LIGHT = 0x1,
+	MAGNETOMETER = 0x2,
+	ACCELEROMETER = 0x3
 };
 
 struct subscription {
 	enum sensor type;
 	enum analysis aggregation;
-	uint8_t period;
-};
-
-struct msg_header {
-	enum message message_type;
-	struct identifier edition;
-	uint8_t hops;
+	uint16_t period;
 };
 
 struct subscription_item {
 	struct subscription_item *next;
 	struct identifier id;
 	struct subscription sub;
-	rimeaddr_t parent;
-	uint8_t cost;
+	rimeaddr_t next_hop;
+	uint16_t cost;
+  unsigned long last_heard;
+  unsigned long last_shout;
 	struct ctimer t;
 };
 
-struct manuscript {
+#define MWARE_MSG_SUB 0x1
+struct subscribe_message {
+	struct identifier id;
+	struct subscription sub;
+	uint16_t cost;
+};
+
+#define MWARE_MSG_PUB 0x2
+struct publish_message {
+	struct identifier id;
 	rimeaddr_t next_hop;
-	uint16_t timestamp;
+	uint16_t cost;
 	uint16_t v1;
 	uint16_t v2;
 };
 
+#define MWARE_MSG_UNSUB 0x3
+struct unsubscribe_message {
+	struct identifier id;
+};
+
+
 struct mware_callbacks {
-	void (*sense) (struct identifier *i, struct subscription *r);
-	void (*publish) (struct identifier *i, struct manuscript *m);
+	void (*sense) (struct identifier *i, struct subscription *s);
+	void (*publish) (struct identifier *i, uint16_t value);
 };
 
 void mware_bootstrap(uint16_t channel, const struct mware_callbacks *cb);
 
-void mware_subscribe(uint8_t id, struct subscription *r);
-void mware_publish(struct identifier *i, struct manuscript *m);
-void mware_unsubscribe(uint8_t id);
-
+void mware_subscribe(struct identifier *i, struct subscription *r);
+void mware_publish(struct identifier *i, uint16_t v1, uint16_t v2);
+void mware_unsubscribe(struct identifier *i);
+void mware_shutdown(void);
+#endif /* __MWARE_H__*/

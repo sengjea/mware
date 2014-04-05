@@ -45,11 +45,11 @@ PROCESS(mware_app, "Middleware App");
 AUTOSTART_PROCESSES(&mware_app);
 
 static void
-sense_callback(struct identifier *i, struct subscription *r) {
+sense_callback(struct identifier *i, struct subscription *s) {
 
 }
 static void
-publish_callback(struct identifier *i, struct manuscript *m){
+publish_callback(struct identifier *i, uint16_t value){
 
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
@@ -65,7 +65,9 @@ PROCESS_THREAD(mware_app, ev, data)
     struct subscription s = { .type = MAGNETOMETER,
                               .aggregation = MIN,
                               .period = 0x57 }; 
-    mware_subscribe(1,&s);
+    struct identifier i = { .id = 1 };
+    rimeaddr_copy(&i.subscriber, &rimeaddr_node_addr); 
+    mware_subscribe(&i,&s);
   }
   PROCESS_END(); 
 }

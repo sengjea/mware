@@ -63,13 +63,15 @@ PROCESS_THREAD(mware_app, ev, data)
   //TODO: Initialise random set of available sensors.
   leds_on(LEDS_GREEN);  
   while (1) {
-    etimer_set(&et, (20 + (random_rand() % (20*2))) * CLOCK_SECOND);
+    etimer_set(&et, RANDOM_INTERVAL(20));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     if (random_rand() % 100 < 5) {
       leds_on(LEDS_RED);  
       leds_off(LEDS_GREEN);  
-      etimer_set(&et, (60 + (random_rand() % (60*2))) * CLOCK_SECOND);
+      mware_shutdown(); 
+      etimer_set(&et, RANDOM_INTERVAL(60));
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+      mware_bootstrap(128, &mware_cb);
     }
     leds_off(LEDS_RED);  
     leds_on(LEDS_GREEN);  

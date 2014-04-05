@@ -6,8 +6,14 @@
 
 static struct broadcast_conn connection;
 static const struct mware_callbacks *callback;
-
+static struct ctimer timer;
 static void wind_timer(struct subscription_item *si);
+static const struct packetbuf_attrlist attributes[] =
+  {
+    MWARE_ATTRIBUTES
+    PACKETBUF_ATTR_LAST
+  };
+
 /*------------Subscription Manager-----------------*/
 LIST(subscription_list);
 MEMB(subscription_memb, struct subscription_item, MWARE_SIZE);
@@ -22,7 +28,7 @@ struct subscription_item *
 subscription_get(struct identifier * i) {
 	struct subscription_item *si;
 	for (si = list_head(subscription_list);
-		si != NULL; si = list_item_next(si)) {
+			si != NULL; si = list_item_next(si)) {
 		if (memcmp(i,&si->id,sizeof(struct identifier)) == 0) {
 			return si;
 		}
@@ -30,53 +36,75 @@ subscription_get(struct identifier * i) {
 	return NULL;
 }
 void
-subscription_parent_refresh(rimeaddr_t  *parent) {
+subscription_print_table(void) {
 	struct subscription_item *si;
 	for (si = list_head(subscription_list);
-		si != NULL; si = list_item_next(si)) {
-		if (rimeaddr_cmp(&si->parent, parent) == 1) {
-			wind_timer(si);
-		}
+			si != NULL; si = list_item_next(si)) {
+	PRINTF("- s:");
+  PRINT2ADDR(&si->id.subscriber);
+  PRINTF(", i:%d, nh:", si->id.id);
+  PRINT2ADDR(&si->next_hop);
+  PRINTF(", c:%d\n", si->cost);
+  }
+}
+void
+subscription_next_hop_refresh(const rimeaddr_t  *next_hop) {
+	struct subscription_item *si;
+	for (si = list_head(subscription_list);
+			si != NULL; si = list_item_next(si)) {
+		if (rimeaddr_cmp(&si->next_hop, next_hop) == 1) {
+	    si->last_heard = clock_seconds();	
+    }
 	}
+}
+int
+subscription_update(struct subscription_item *si,
+		rimeaddr_t *next_hop, uint8_t cost) {
+	  si->last_heard = clock_seconds();	
+	if (rimeaddr_cmp(&si->next_hop, next_hop) == 1) {
+		si->cost = cost;
+		return 0;
+	} else if (cost < si->cost) {
+		rimeaddr_copy(&si->next_hop, next_hop);
+		si->cost = cost;
+		return 1;
+	}
+	return 0;
 }
 struct subscription_item *
 subscription_insert(struct identifier *i, struct subscription *s,
-		rimeaddr_t *parent, uint8_t cost) {
+		rimeaddr_t *next_hop, uint8_t cost) {
 	struct subscription_item *si;
-	if ((si = subscription_get(i))) {
-		if (si->cost < cost) {
-			rimeaddr_copy(&si->parent, parent);
-			si->cost = cost;
-		} else if (rimeaddr_cmp(&si->parent, parent) == 1) {
-			si->cost = cost;
-		}
-    PRINTF("Subscription Updated\n");
+	si = memb_alloc(&subscription_memb);
+	if (si == NULL) {
+		return NULL;
 	}
-	else {
-		si = memb_alloc(&subscription_memb);
-		if (si == NULL) {
-			return NULL;
-		}
-		memcpy(&si->id,i,sizeof(struct identifier));
-		memcpy(&si->sub,s,sizeof(struct subscription));
-		rimeaddr_copy(&si->parent, parent);
-		si->cost = cost;
-		list_add(subscription_list, si);
-    PRINTF("Subscription Added\n");
-	}
+	memcpy(&si->id,i,sizeof(struct identifier));
+	memcpy(&si->sub,s,sizeof(struct subscription));
+	rimeaddr_copy(&si->next_hop, next_hop);
+	si->cost = cost;
+	si->last_heard = clock_seconds();	
+	si->last_shout = 0;	
+	list_add(subscription_list, si);
+	PRINTF("subscription_item: added\n");
+
 	wind_timer(si);
 	return si;
 }
+void
+subscription_remove_item(struct subscription_item *si) {
+	ctimer_stop(&si->t);
+	list_remove(subscription_list, si);
+	memb_free(&subscription_memb, si);
+}
+
 void
 subscription_remove(struct identifier *i) {
 	struct subscription_item *si = subscription_get(i);
 	if (si == NULL) {
 		return;
 	}
-	ctimer_stop(&si->t);
-	list_remove(subscription_list, si);
-	memb_free(&subscription_memb, si);
-
+  subscription_remove_item(si);
 }
 /*----------------------------------------------*/
 void
@@ -99,42 +127,83 @@ print_raw_packetbuf(void)
 	DPRINTF("[%d]\n", (int16_t) (packetbuf_dataptr() - packetbuf_hdrptr()));
 }
 /*----------------------------------------------*/
-void
+int
+is_my_subscription(struct subscription_item *si) {
+  return rimeaddr_cmp(&si->id.subscriber, &rimeaddr_node_addr);
+}
+int
+is_published_to_me(void) {
+  return (packetbuf_attr(PACKETBUF_ATTR_PACKET_TYPE) == MWARE_MSG_PUB &&
+            rimeaddr_cmp(&((struct publish_message *) packetbuf_dataptr())->next_hop,
+              &rimeaddr_node_addr));
+}
+  void
 packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 {
-	struct msg_header *hdr = packetbuf_dataptr();
 	struct subscription_item *si;
-	PRINT2ADDR(&hdr->edition.subscriber);
-	PRINTF(" ID: %d \n",hdr->edition.id);
-	packetbuf_hdrreduce(sizeof(struct msg_header));
-	switch(hdr->message_type) {
-	case SUBSCRIBE:
-		si = subscription_get(&hdr->edition);
-    si = subscription_insert(&hdr->edition,
-				(struct subscription *) packetbuf_dataptr(),
-				(rimeaddr_t *) from, hdr->hops + 1);
-		break;
-	case PUBLISH:
-		si = subscription_get(&hdr->edition);
-		if (si != NULL) {
+	switch(packetbuf_attr(PACKETBUF_ATTR_PACKET_TYPE)) {
+	case MWARE_MSG_SUB:
+		if ((si = subscription_get(&((struct subscribe_message *) packetbuf_dataptr())->id))) {
+			subscription_update(si, (rimeaddr_t *) from,
+				((struct subscribe_message *) packetbuf_dataptr())->cost + 1);
+      subscription_print_table();
+		} else {
+			si = subscription_insert(&((struct subscribe_message *) packetbuf_dataptr())->id,
+				&((struct subscribe_message *) packetbuf_dataptr())->sub,
+				(rimeaddr_t *) from,
+        ((struct subscribe_message *) packetbuf_dataptr())->cost + 1);
 		}
 		break;
-	case UNSUBSCRIBE:
-		subscription_remove(&hdr->edition);
+	case MWARE_MSG_PUB:
+		si = subscription_get(&((struct publish_message *) packetbuf_dataptr())->id);
+		if (si != NULL) {
+	    //Ignore here.	
+    }
+	  if (is_published_to_me()) {
+    }  
+    if (is_my_subscription(si)) {
+    }
+    
+    break;
+	case MWARE_MSG_UNSUB:
+		subscription_remove(&((struct unsubscribe_message *) packetbuf_dataptr())->id);
 		break;
 	}
-	packetbuf_clear();
+  subscription_next_hop_refresh(from);	
+  packetbuf_clear();
 }
 static const struct broadcast_callbacks connection_cb = { packet_received };
 
+void
+broadcast_subscription(struct subscription_item *si) {
+  struct subscribe_message *msg;	
+  packetbuf_clear();
+  packetbuf_set_attr(PACKETBUF_ATTR_PACKET_TYPE, MWARE_MSG_SUB);
+  packetbuf_set_datalen(sizeof(struct subscribe_message)); 
+  msg = packetbuf_dataptr();
+  memcpy(&msg->id, &si->id, sizeof(struct identifier));
+  memcpy(&msg->sub, &si->sub, sizeof(struct subscription));
+  msg->cost = si->cost; 
+  if (broadcast_send(&connection)) {
+    si->last_shout = clock_seconds(); 
+  }
+}
+
 static void
 mware_service_item(void *p) {
-  struct subscription_item *si = (struct subscription_item *) p;	
-  wind_timer(si);
+	struct subscription_item *si = (struct subscription_item *) p;	
+  callback->sense(&si->id, &si->sub); 
+  if (si->last_heard + MWARE_SHELFLIFE < clock_seconds()) {
+    subscription_remove(si);  
+    return;   
+  } 
+  if (si->last_shout + MWARE_BEACON_INTERVAL < clock_seconds()) {
+    broadcast_subscription(si); 
+  } 
 }
 static void wind_timer(struct subscription_item *si) {
 	if (ctimer_expired(&si->t)) {
-		ctimer_set(&si->t, 300*CLOCK_SECOND, mware_service_item, si);
+    ctimer_set(&si->t, si->sub.period, mware_service_item, si);
 	}
 }
 /*----------------------------------------------*/
@@ -142,52 +211,48 @@ void
 mware_bootstrap(uint16_t channel, const struct mware_callbacks *m) {
 	subscription_init();
 	broadcast_open(&connection, channel, &connection_cb);
+  channel_set_attributes(channel, attributes);
 	callback = m;
 }
 void
-broadcast_subscription(struct subscription_item *si) {
-  struct msg_header hdr = { .message_type = SUBSCRIBE,
-                            .hops = si->cost }
-  memcpy(&hdr.edition, si->id, sizeof(struct identifier));  
-	packetbuf_clear();
-	packetbuf_prepend_hdr(&si->sub, sizeof(struct subscription));
-	packetbuf_prepend_hdr(&hdr, sizeof(struct msg_header));
-	broadcast_send(&connection);
-}
-void
-mware_subscribe(uint8_t id, struct subscription *s) {
-	struct msg_header hdr = { .message_type = SUBSCRIBE,
-		.hops = 0,
-		.edition = { .id = id }	};
-  struct identifier i = { .id = id };
-	rimeaddr_copy(&i.subscriber,&rimeaddr_node_addr);
-	struct subscription_item *si = subscription_insert(&i, s, &rimeaddr_node_addr, 0);
+mware_subscribe(struct identifier *i, struct subscription *s) {
+  struct subscription_item *si;	
+  si = subscription_insert(i, s, &i->subscriber, 0);
   broadcast_subscription(si);
 }
 
 void
-mware_unsubscribe(uint8_t id) {
-	struct msg_header hdr = { .message_type = UNSUBSCRIBE,
-		.hops = 0,
-		.edition = { .id = id }	};
-	rimeaddr_copy(&hdr.edition.subscriber, &rimeaddr_node_addr);
-	packetbuf_clear();
-	packetbuf_prepend_hdr(&hdr, sizeof(struct msg_header));
-	broadcast_send(&connection);
+mware_unsubscribe(struct identifier *i) {
+  struct unsubscribe_message *msg; 
+  packetbuf_clear();
+  packetbuf_set_attr(PACKETBUF_ATTR_PACKET_TYPE, MWARE_MSG_UNSUB);
+	packetbuf_set_datalen(sizeof(struct unsubscribe_message)); 
+  msg = packetbuf_dataptr();  
+  memcpy(&msg->id, i,sizeof(struct identifier)); 
+  broadcast_send(&connection);
 }
 
 void
-mware_publish(struct identifier *i, struct manuscript *m) {
-	struct msg_header hdr = { .message_type = PUBLISH, .hops = 0 };
+mware_publish(struct identifier *i, uint16_t v1, uint16_t v2) {
 	struct subscription_item *si;
+  struct publish_message *msg; 
 	si = subscription_get(i);
 	if (si == NULL) {
 		return;
 	}
-	memcpy(&hdr.edition, i, sizeof(struct identifier));
-	packetbuf_clear();
-	rimeaddr_copy(&m->next_hop,&si->parent);
-	packetbuf_prepend_hdr(m, sizeof(struct manuscript));
-	packetbuf_prepend_hdr(&hdr, sizeof(struct msg_header));
-	broadcast_send(&connection);
+  packetbuf_clear();
+  packetbuf_set_attr(PACKETBUF_ATTR_PACKET_TYPE, MWARE_MSG_PUB);
+	packetbuf_set_datalen(sizeof(struct publish_message)); 
+  msg = packetbuf_dataptr();  
+  memcpy(&msg->id, i,sizeof(struct identifier)); 
+  rimeaddr_copy(&msg->next_hop, &si->next_hop); 
+  msg->v1 = v1;
+  msg->v2 = v2; 
+  broadcast_send(&connection);
 }
+
+void
+mware_shutdown(void) {
+  broadcast_close(&connection);
+}
+
