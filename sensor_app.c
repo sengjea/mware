@@ -48,7 +48,7 @@ sense_callback(struct identifier *i, struct subscription *r) {
   PRINTF("Sense Called\n");
 }
 static void
-publish_callback(struct identifier *i, struct manuscript *m){
+publish_callback(struct identifier *i, uint16_t value) {
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 

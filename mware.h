@@ -61,8 +61,8 @@
 #define MWARE_SIZE 10
 #define RANDOM_INTERVAL(i) ((i/2)+random_rand()%i)*CLOCK_SECOND 
 #define MWARE_INFINITE_COST 30
-#define MWARE_BEACON_INTERVAL 15
-#define MWARE_SHELFLIFE 120
+#define MWARE_BEACON_INTERVAL 60 
+#define MWARE_SHELFLIFE 180
 #define MWARE_ATTRIBUTES  { PACKETBUF_ATTR_PACKET_TYPE, PACKETBUF_ATTR_BIT* 4}, \
                           BROADCAST_ATTRIBUTES
 struct identifier {
@@ -94,8 +94,8 @@ struct subscription_item {
 	struct subscription sub;
 	rimeaddr_t next_hop;
 	uint16_t cost;
-  unsigned long last_heard;
-  unsigned long last_shout;
+	unsigned long last_heard;
+	unsigned long last_shout;
 	struct ctimer t;
 };
 
@@ -118,6 +118,7 @@ struct publish_message {
 #define MWARE_MSG_UNSUB 0x3
 struct unsubscribe_message {
 	struct identifier id;
+	uint16_t cost;
 };
 
 
