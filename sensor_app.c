@@ -71,20 +71,19 @@ PROCESS_THREAD(mware_app, ev, data)
   mware_bootstrap(128, &mware_cb);
   PRINTF("Initialised Sensor.\n");
   //TODO: Initialise random set of available sensors.
-  leds_on(LEDS_GREEN);  
   while (1) {
-    etimer_set(&et, RANDOM_INTERVAL(20));
+    leds_on(LEDS_YELLOW);  
+    etimer_set(&et, RANDOM_INTERVAL(30));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     if (random_rand() % 100 < 5) {
-      leds_on(LEDS_RED);  
-      leds_off(LEDS_GREEN);  
+      leds_off(LEDS_YELLOW);  
+      PRINTF("Going down...\n"); 
       mware_shutdown(); 
-      etimer_set(&et, RANDOM_INTERVAL(60));
+      etimer_set(&et, RANDOM_INTERVAL(120));
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
       mware_bootstrap(128, &mware_cb);
+      PRINTF("And we're back...\n"); 
     }
-    leds_off(LEDS_RED);  
-    leds_on(LEDS_GREEN);  
   }
   PROCESS_END(); 
 }

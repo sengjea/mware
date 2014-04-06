@@ -71,7 +71,10 @@ struct identifier {
 	uint16_t id;
 	uint16_t cost;
 };
-
+//struct verifier {
+//  uint32_t nonce;
+//  uint32_t response;
+//};
 enum analysis {
 	MAX = 0x1,
 	MIN = 0x2,
@@ -87,7 +90,8 @@ enum sensor {
 struct subscription {
 	enum sensor type;
 	enum analysis aggregation;
-	uint16_t period;
+	uint8_t period;
+	uint8_t epoch;
 };
 
 struct subscription_item {
@@ -99,7 +103,8 @@ struct subscription_item {
 	uint16_t v2;
 	unsigned long last_heard;
 	unsigned long last_shout;
-	struct ctimer t;
+  unsigned long last_epoch;	
+  struct ctimer t;
 };
 
 #define MWARE_MSG_SUB 0x1

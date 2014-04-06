@@ -35,18 +35,22 @@ subscription_get(struct identifier * i) {
 	}
 	return NULL;
 }
+void
+subscription_print(struct subscription_item *si) {
+		PRINTF("subs:");
+		PRINT2ADDR(&si->id.subscriber);
+		PRINTF(", i:%d, nh:", si->id.id);
+		PRINT2ADDR(&si->next_hop);
+		PRINTF(", c:%d\n", si->id.cost);
+}
 
 void
 subscription_print_table(void) {
 	struct subscription_item *si;
 	for (si = list_head(subscription_list);
 			si != NULL; si = list_item_next(si)) {
-		PRINTF("- s:");
-		PRINT2ADDR(&si->id.subscriber);
-		PRINTF(", i:%d, nh:", si->id.id);
-		PRINT2ADDR(&si->next_hop);
-		PRINTF(", c:%d\n", si->id.cost);
-	}
+  subscription_print(si);	
+  }
 }
 
 void
@@ -54,7 +58,7 @@ subscription_update_last_heard(const rimeaddr_t  *next_hop) {
 	struct subscription_item *si;
 	for (si = list_head(subscription_list);
 			si != NULL; si = list_item_next(si)) {
-		if (si->last_heard != 0 && rimeaddr_cmp(&si->next_hop, next_hop) == 1) {
+		if (si->last_heard != 0 && rimeaddr_cmp(&si->next_hop, next_hop)) {
 			si->last_heard = clock_seconds();	
 		}
 	}
@@ -67,7 +71,7 @@ int
 subscription_update(struct subscription_item *si,
 		rimeaddr_t *next_hop, uint8_t cost) {
 	si->last_heard = clock_seconds();	
-	if (rimeaddr_cmp(&si->next_hop, next_hop) == 1) {
+	if (rimeaddr_cmp(&si->next_hop, next_hop)) {
 		si->id.cost = cost;
 		return 0;
 	} else if (cost < si->id.cost) {
@@ -109,19 +113,27 @@ void
 subscription_remove(struct subscription_item *si) {
 	ctimer_stop(&si->t);
 	list_remove(subscription_list, si);
-	memb_free(&subscription_memb, si);
+  memset(si,0,sizeof(struct subscription_item)); 
+  memb_free(&subscription_memb, si);
+  
 }
 
 void
-subscription_expire(struct subscription_item *si) {
-	si->last_heard = 0;
+subscription_unsubscribe(struct subscription_item *si) {
+  if (!rimeaddr_cmp(&si->next_hop, &rimeaddr_null)) { 
+    si->last_shout = 0;
+    rimeaddr_copy(&si->next_hop, &rimeaddr_null);
+  }
 }
 
 int 
-subscription_is_expired(struct subscription_item *si) {
-	return (si->last_heard == 0 || si->last_heard + MWARE_SHELFLIFE < clock_seconds());
+subscription_is_unsubscribed(struct subscription_item *si) {
+	return (rimeaddr_cmp(&si->next_hop, &rimeaddr_null));
 }	
-
+int 
+subscription_is_stale(struct subscription_item *si) {
+	return (si->last_heard + MWARE_SHELFLIFE < clock_seconds());
+}	
 int
 subscription_needs_broadcast(struct subscription_item *si) {
   return (si->last_shout == 0 || si->last_shout + MWARE_BEACON_INTERVAL < clock_seconds());
@@ -133,6 +145,7 @@ subscription_is_mine(struct subscription_item *si) {
 }
 void
 subscription_aggregate_input(struct subscription_item *si, uint16_t v1, uint16_t v2) {
+  if (si->v1 == 0) { si->v1 = v1; } 
   switch (si->sub.type) {
   case MIN:
     if (v1 < si->v1) {
@@ -184,59 +197,7 @@ message_is_published_to_me(void) {
 			rimeaddr_cmp(&((struct publish_message *) packetbuf_dataptr())->next_hop,
 				&rimeaddr_node_addr));
 }
-/*-------------------Broadcast Reception---------------------------*/
-void
-packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
-{
-	struct subscription_item *si;
-	switch(packetbuf_attr(PACKETBUF_ATTR_PACKET_TYPE)) {
-		case MWARE_MSG_SUB:
-			if ((si = subscription_get(&((struct subscribe_message *) packetbuf_dataptr())->id))) {
-				subscription_update(si, (rimeaddr_t *) from,
-						((struct subscribe_message *) packetbuf_dataptr())->id.cost + 1);
-			} else {
-				si = subscription_insert(&((struct subscribe_message *) packetbuf_dataptr())->id,
-						&((struct subscribe_message *) packetbuf_dataptr())->sub,
-						(rimeaddr_t *) from,
-						((struct subscribe_message *) packetbuf_dataptr())->id.cost + 1);	
-				if (si != NULL) {
-					wind_timer(si);
-				}	
-			}
-			subscription_print_table();
-			break;
-		case MWARE_MSG_PUB:
-			si = subscription_get(&((struct publish_message *) packetbuf_dataptr())->id);
-			if (si == NULL) {
-        break;
-      }
-      if (message_is_published_to_me() && !subscription_is_expired(si)) {	
-        subscription_aggregate_input(si, ((struct publish_message *) packetbuf_dataptr())->v1,
-            ((struct publish_message *) packetbuf_dataptr())->v2);	
-        //TODO: i'm the responsible parent...
-			}  
-			if (subscription_is_mine(si)) {
-				callback->publish(&si->id, subscription_aggregate_output(si)); 
-				//TODO: I'm the final destination...
-			}
-			break;
-		case MWARE_MSG_UNSUB:
-			si = subscription_get(&((struct publish_message *) packetbuf_dataptr())->id);
-			if (si == NULL) {
-        break;
-      }
-      if (rimeaddr_cmp(&si->next_hop, &rimeaddr_node_addr)) {
-				subscription_expire(si);
-			}	
-			break;
-	}
-	subscription_update_last_heard(from);	
-	packetbuf_clear();
-}
-
-static const struct broadcast_callbacks connection_cb = { packet_received };
-/*--------------------Subscription Broadcasting --------------------------*/
-
+/*-------------------------------------------------------*/
 void
 broadcast_subscription(struct subscription_item *si) {
 	struct subscribe_message *msg; 
@@ -247,11 +208,13 @@ broadcast_subscription(struct subscription_item *si) {
 	memcpy(&msg->id, &si->id, sizeof(struct identifier));
 	memcpy(&msg->sub, &si->sub, sizeof(struct subscription));
 	if (broadcast_send(&connection)) {
-	    subscription_update_last_shout(si);	
+      PRINTF("broadcast_subscription: ");
+	    subscription_print(si); 
+      subscription_update_last_shout(si);	
 	}
 }
 
-int
+void
 broadcast_unsubscription(struct subscription_item *si) {
 	struct unsubscribe_message *msg; 
 	packetbuf_clear();
@@ -259,27 +222,99 @@ broadcast_unsubscription(struct subscription_item *si) {
 	packetbuf_set_datalen(sizeof(struct unsubscribe_message)); 
 	msg = packetbuf_dataptr();
 	memcpy(&msg->id, &si->id, sizeof(struct identifier));
-	return broadcast_send(&connection);
+	if (broadcast_send(&connection)) {
+      PRINTF("broadcast_unsubscription: ");
+	    subscription_print(si); 
+	    subscription_update_last_shout(si);	
+	}
 }
+/*-------------------Broadcast Reception---------------------------*/
+struct subscribe_message *
+packetbuf_msg_sub(void) {
+  return (struct subscribe_message *) packetbuf_dataptr();
+}
+struct publish_message *
+packetbuf_msg_pub(void) {
+  return (struct publish_message *) packetbuf_dataptr();
+}
+struct unsubscribe_message *
+packetbuf_msg_unsub(void) {
+  return (struct unsubscribe_message *) packetbuf_dataptr();
+}
+void
+packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
+{
+	struct subscription_item *si;
+	switch(packetbuf_attr(PACKETBUF_ATTR_PACKET_TYPE)) {
+		case MWARE_MSG_SUB:
+		  	
+      if (( si = subscription_get(&(packetbuf_msg_sub())->id) )) {
+          if (!subscription_is_unsubscribed(si)) {
+				subscription_update(si, (rimeaddr_t *) from,
+						(packetbuf_msg_sub())->id.cost + 1);
+        }
+			} else {
+				si = subscription_insert(&(packetbuf_msg_sub())->id,
+						&(packetbuf_msg_sub())->sub,
+						(rimeaddr_t *) from,
+						(packetbuf_msg_sub())->id.cost + 1);	
+				if (si != NULL) {
+					wind_timer(si);
+				}	
+			}
+			subscription_print_table();
+			break;
+		case MWARE_MSG_PUB:
+			si = subscription_get(&(packetbuf_msg_pub())->id);
+			if (si == NULL || subscription_is_unsubscribed(si)) {
+        break;
+      }
+      if (message_is_published_to_me()) {	
+          subscription_aggregate_input(si, (packetbuf_msg_pub())->v1,
+              (packetbuf_msg_pub())->v2);	
+			}  
+			if (subscription_is_mine(si)) {
+				callback->publish(&si->id, subscription_aggregate_output(si)); 
+				//TODO: I'm the final destination...
+			}
+			break;
+		case MWARE_MSG_UNSUB:
+			si = subscription_get(&(packetbuf_msg_unsub())->id);
+			if (si != NULL) {
+        subscription_unsubscribe(si);
+      }
+			break;
+	}
+	subscription_update_last_heard(from);	
+	packetbuf_clear();
+}
+
+static const struct broadcast_callbacks connection_cb = { packet_received };
+/*--------------------Subscription Broadcasting --------------------------*/
+
 
 static void
 mware_service_item(void *p) {
 	struct subscription_item *si = (struct subscription_item *) p;	
-	if (subscription_is_expired(si) && broadcast_unsubscription(si)) {
-		subscription_remove(si);  
-		return;   
-	} else if (subscription_needs_broadcast(si)) {
-		broadcast_subscription(si); 
-	}
-  else {
-	  callback->sense(&si->id, &si->sub); 
-  } 
-	wind_timer(si);
+  if (!subscription_is_unsubscribed(si)) {
+    callback->sense(&si->id, &si->sub); 
+  }
+  if (subscription_needs_broadcast(si)) {
+    if (subscription_is_unsubscribed(si)) {
+      broadcast_unsubscription(si);
+    } else {
+      broadcast_subscription(si); 
+    } 
+  } else if (subscription_is_stale(si)) {
+    subscription_remove(si); 
+    return; 
+  }	
+  wind_timer(si);
 }
 
 static void wind_timer(struct subscription_item *si) {
-	if (ctimer_expired(&si->t)) {
-		if (subscription_needs_broadcast(si)) {
+  if (ctimer_expired(&si->t)) {
+    if (subscription_needs_broadcast(si)) {
       ctimer_set(&si->t, RANDOM_INTERVAL(6), mware_service_item, si);
     } else {
       ctimer_set(&si->t, si->sub.period*CLOCK_SECOND, mware_service_item, si);
@@ -314,7 +349,7 @@ mware_unsubscribe(struct identifier *i) {
 	struct subscription_item *si;
 	si = subscription_get(i);	
 	if (si != NULL) {
-		subscription_expire(si);
+		subscription_unsubscribe(si);
 	}
 }
 
@@ -323,7 +358,7 @@ mware_publish(struct identifier *i, uint16_t v1, uint16_t v2) {
 	struct subscription_item *si;
 	struct publish_message *msg; 
 	si = subscription_get(i);
-	if (si == NULL) {
+	if (si == NULL || subscription_is_unsubscribed(si)) {
 		return;
 	}
   subscription_aggregate_input(si, v1, v2);	
