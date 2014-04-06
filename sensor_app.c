@@ -44,8 +44,18 @@
 PROCESS(mware_app, "Middleware App");
 AUTOSTART_PROCESSES(&mware_app);
 static void
-sense_callback(struct identifier *i, struct subscription *r) {
-  PRINTF("Sense Called\n");
+sense_callback(struct identifier *i, struct subscription *s) {
+  uint16_t value;
+  value = random_rand()*256+random_rand();
+  PRINTF("Sensed! %d\n", value);
+  switch (s->type) {
+  case LIGHT: 
+  case MAGNETOMETER:
+    mware_publish(i, value, 1);
+    break;
+  case ACCELEROMETER:
+    break;
+  }
 }
 static void
 publish_callback(struct identifier *i, uint16_t value) {

@@ -50,24 +50,28 @@ sense_callback(struct identifier *i, struct subscription *s) {
 }
 static void
 publish_callback(struct identifier *i, uint16_t value){
-
+  PRINTF("Base Data i:%d v:%d\n",i->id,value);
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 PROCESS_THREAD(mware_app, ev, data)
 {
+  static struct subscription s = { .type = MAGNETOMETER,
+                            .aggregation = MIN,
+                            .period = 5 }; 
+  static struct identifier i = { .id = 1 };
   PROCESS_EXITHANDLER(;)
   PROCESS_BEGIN();
   mware_bootstrap(128, &mware_cb);
   while (1) {
-    PRINTF("<press button to fire>\n");
+    PRINTF("<press button to subscribe>\n");
     PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
          data == &button_sensor);
-    struct subscription s = { .type = MAGNETOMETER,
-                              .aggregation = MIN,
-                              .period = 0x57 }; 
-    struct identifier i = { .id = 1 };
     rimeaddr_copy(&i.subscriber, &rimeaddr_node_addr); 
     mware_subscribe(&i,&s);
+    PRINTF("<press button to unsubscribe>\n");
+    PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
+         data == &button_sensor);
+    mware_unsubscribe(&i);
   }
   PROCESS_END(); 
 }

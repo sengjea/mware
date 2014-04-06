@@ -46,6 +46,7 @@
 #ifndef __COLLECT_H__
 #define __MWARE_H__
 #include "contiki.h"
+#include "lib/random.h"
 #include "net/rime.h"
 #include <stddef.h>
 #define DEBUG 1 
@@ -62,12 +63,13 @@
 #define RANDOM_INTERVAL(i) ((i/2)+random_rand()%i)*CLOCK_SECOND 
 #define MWARE_INFINITE_COST 30
 #define MWARE_BEACON_INTERVAL 60 
-#define MWARE_SHELFLIFE 180
+#define MWARE_SHELFLIFE 120
 #define MWARE_ATTRIBUTES  { PACKETBUF_ATTR_PACKET_TYPE, PACKETBUF_ATTR_BIT* 4}, \
                           BROADCAST_ATTRIBUTES
 struct identifier {
 	rimeaddr_t subscriber;
 	uint16_t id;
+	uint16_t cost;
 };
 
 enum analysis {
@@ -93,7 +95,8 @@ struct subscription_item {
 	struct identifier id;
 	struct subscription sub;
 	rimeaddr_t next_hop;
-	uint16_t cost;
+	uint16_t v1;
+	uint16_t v2;
 	unsigned long last_heard;
 	unsigned long last_shout;
 	struct ctimer t;
@@ -103,14 +106,12 @@ struct subscription_item {
 struct subscribe_message {
 	struct identifier id;
 	struct subscription sub;
-	uint16_t cost;
 };
 
 #define MWARE_MSG_PUB 0x2
 struct publish_message {
 	struct identifier id;
 	rimeaddr_t next_hop;
-	uint16_t cost;
 	uint16_t v1;
 	uint16_t v2;
 };
@@ -118,7 +119,6 @@ struct publish_message {
 #define MWARE_MSG_UNSUB 0x3
 struct unsubscribe_message {
 	struct identifier id;
-	uint16_t cost;
 };
 
 
@@ -129,7 +129,7 @@ struct mware_callbacks {
 
 void mware_bootstrap(uint16_t channel, const struct mware_callbacks *cb);
 
-void mware_subscribe(struct identifier *i, struct subscription *r);
+int mware_subscribe(struct identifier *i, struct subscription *s);
 void mware_publish(struct identifier *i, uint16_t v1, uint16_t v2);
 void mware_unsubscribe(struct identifier *i);
 void mware_shutdown(void);
