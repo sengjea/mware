@@ -92,6 +92,7 @@ struct subscription {
 	enum analysis aggregation;
 	uint8_t period;
 	uint8_t epoch;
+  	unsigned long epoch_start;	
 };
 
 struct subscription_item {
@@ -103,14 +104,14 @@ struct subscription_item {
 	uint16_t v2;
 	unsigned long last_heard;
 	unsigned long last_shout;
-  unsigned long last_epoch;	
-  struct ctimer t;
+  	struct ctimer t;
 };
 
 #define MWARE_MSG_SUB 0x1
 struct subscribe_message {
 	struct identifier id;
 	struct subscription sub;
+	unsigned long current_time;
 };
 
 #define MWARE_MSG_PUB 0x2
