@@ -47,7 +47,6 @@ static void
 sense_callback(struct identifier *i, struct subscription *s) {
   uint16_t value;
   value = random_rand()*256+random_rand();
-  PRINTF("Sensed! %d\n", value);
   switch (s->type) {
   case LIGHT: 
   case MAGNETOMETER:
@@ -56,6 +55,7 @@ sense_callback(struct identifier *i, struct subscription *s) {
   case ACCELEROMETER:
     break;
   }
+  leds_toggle(LEDS_YELLOW);
 }
 static void
 publish_callback(struct identifier *i, uint16_t value) {
@@ -72,11 +72,8 @@ PROCESS_THREAD(mware_app, ev, data)
   PRINTF("Initialised Sensor.\n");
   //TODO: Initialise random set of available sensors.
   while (1) {
-    leds_on(LEDS_YELLOW);  
-    etimer_set(&et, RANDOM_INTERVAL(30));
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-    if (random_rand() % 100 < 5) {
-      leds_off(LEDS_YELLOW);  
+    if (random_rand() % 100 < 0) {
+      leds_on(LEDS_RED);  
       PRINTF("Going down...\n"); 
       mware_shutdown(); 
       etimer_set(&et, RANDOM_INTERVAL(120));
@@ -84,6 +81,9 @@ PROCESS_THREAD(mware_app, ev, data)
       mware_bootstrap(128, &mware_cb);
       PRINTF("And we're back...\n"); 
     }
+    leds_off(LEDS_RED);  
+    etimer_set(&et, RANDOM_INTERVAL(30));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   }
   PROCESS_END(); 
 }

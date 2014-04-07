@@ -60,12 +60,12 @@
 #define DPRINT2ADDR(addr) DPRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define PRINT2ADDR(addr) PRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define MWARE_SIZE 10
-#define RANDOM_INTERVAL(i) ((i/2)+random_rand()%i)*CLOCK_SECOND 
+#define RANDOM_INTERVAL(i) ((i*CLOCK_SECOND/2)+random_rand()%(i*CLOCK_SECOND)) 
 #define MWARE_INFINITE_COST 30
 #define MWARE_BEACON_INTERVAL 60 
 #define MWARE_SHELFLIFE 120
 #define MWARE_ATTRIBUTES  { PACKETBUF_ATTR_PACKET_TYPE, PACKETBUF_ATTR_BIT* 4}, \
-                          BROADCAST_ATTRIBUTES
+	BROADCAST_ATTRIBUTES
 struct identifier {
 	rimeaddr_t subscriber;
 	uint16_t id;
@@ -90,9 +90,7 @@ enum sensor {
 struct subscription {
 	enum sensor type;
 	enum analysis aggregation;
-	uint8_t period;
-	uint8_t epoch;
-  	unsigned long epoch_start;	
+	clock_time_t period;
 };
 
 struct subscription_item {
@@ -102,16 +100,17 @@ struct subscription_item {
 	rimeaddr_t next_hop;
 	uint16_t v1;
 	uint16_t v2;
-	unsigned long last_heard;
-	unsigned long last_shout;
-  	struct ctimer t;
+	clock_time_t last_heard;
+	clock_time_t last_shout;
+	struct ctimer sense_timer;
+	struct ctimer publish_timer;
 };
 
 #define MWARE_MSG_SUB 0x1
 struct subscribe_message {
 	struct identifier id;
 	struct subscription sub;
-	unsigned long current_time;
+	clock_time_t remaining;
 };
 
 #define MWARE_MSG_PUB 0x2
@@ -140,3 +139,4 @@ void mware_publish(struct identifier *i, uint16_t v1, uint16_t v2);
 void mware_unsubscribe(struct identifier *i);
 void mware_shutdown(void);
 #endif /* __MWARE_H__*/
+/* vim: set ts=8 sw=8 tw=80 noet :*/
