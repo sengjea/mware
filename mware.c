@@ -42,7 +42,7 @@ subscription_print(struct subscription_item *si) {
 	PRINT2ADDR(&si->id.subscriber);
 	PRINTF(", i:%d, nh:", si->id.id);
 	PRINT2ADDR(&si->next_hop);
-	PRINTF(", c:%d, ls:%lu, lh:%lu\n", si->id.cost,
+	PRINTF(", c:%d, lh:%lu, ls:%lu\n", si->id.cost,
 			si->last_heard, si->last_shout);
 }
 
@@ -74,8 +74,10 @@ int
 subscription_update(struct subscription_item *si,
 		rimeaddr_t *next_hop, uint8_t cost) {
 	if (rimeaddr_cmp(&si->next_hop, next_hop)) {
-		si->id.cost = cost;
-		return 0;
+		if (si->id.cost != cost) {	
+			si->id.cost = cost;
+			return 1;
+		}
 	} else if (cost < si->id.cost) {
 		rimeaddr_copy(&si->next_hop, next_hop);
 		si->id.cost = cost;
@@ -268,18 +270,29 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 		case MWARE_MSG_SUB:
 			si = subscription_get(&(packetbuf_msg_sub())->id);
 			if (si != NULL && !subscription_is_unsubscribed(si)) {
-				subscription_update(si, (rimeaddr_t *) from,
-						(packetbuf_msg_sub())->id.cost + 1);
+				if (!subscription_update(si, (rimeaddr_t *) from,
+						(packetbuf_msg_sub())->id.cost + 1)) {
+					si = NULL;
+				} else {
+					PRINTF("parent changed\n");	
+				}
 			} else if (si == NULL) {
 				si = subscription_insert(&(packetbuf_msg_sub())->id,
 						&(packetbuf_msg_sub())->sub,
 						(rimeaddr_t *) from,
 						(packetbuf_msg_sub())->id.cost + 1);	
-				if (si != NULL) {
-					wind_item_sense_timer(si, (packetbuf_msg_sub())->remaining);
-					wind_item_publish_timer(si);	
-				}	
 			}
+			if (si != NULL) {
+				if ((packetbuf_msg_sub())->remaining < CLOCK_SECOND) {
+					wind_item_sense_timer(si, 
+						(packetbuf_msg_sub())->remaining +
+						si->sub.period - CLOCK_SECOND);
+				} else {
+					wind_item_sense_timer(si, 
+						(packetbuf_msg_sub())->remaining - CLOCK_SECOND);
+				}	
+				wind_item_publish_timer(si);	
+			}	
 			subscription_print_table();
 			break;
 		case MWARE_MSG_PUB:
@@ -316,7 +329,7 @@ static const struct broadcast_callbacks connection_cb = { packet_received };
 static void
 mware_service_item_sense(void *p) {
 	struct subscription_item *si = (struct subscription_item *) p;	
-	if (subscription_is_stale(si)) {
+	if (!subscription_is_mine(si) && subscription_is_stale(si)) {
 		subscription_remove(si); 
 		return;	
 	}	
@@ -347,15 +360,13 @@ mware_service_subscriptions(void) {
 }
 
 static void wind_item_sense_timer(struct subscription_item *si, clock_time_t remaining) {
-	if (ctimer_expired(&si->sense_timer)) {
 		if (remaining > 0) {
 			ctimer_set(&si->sense_timer, remaining,
 					mware_service_item_sense, si);
-		} else {
+		} else if (ctimer_expired(&si->sense_timer)) {
 			ctimer_set(&si->sense_timer, si->sub.period,
 					mware_service_item_sense, si);
 		}
-	}
 }
 static void wind_item_publish_timer(struct subscription_item *si) {
 	if(ctimer_expired(&si->publish_timer)) {
@@ -405,7 +416,6 @@ mware_unsubscribe(struct identifier *i) {
 void
 mware_publish(struct identifier *i, uint16_t v1, uint16_t v2) {
 	struct subscription_item *si;
-	struct publish_message *msg; 
 	si = subscription_get(i);
 	if (si == NULL || subscription_is_unsubscribed(si)) {
 		return;

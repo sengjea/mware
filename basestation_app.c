@@ -57,7 +57,7 @@ PROCESS_THREAD(mware_app, ev, data)
 {
   static struct subscription s = { .type = MAGNETOMETER,
                             .aggregation = MIN,
-                            .period = 5*CLOCK_SECOND }; 
+                            .period = 10*CLOCK_SECOND }; 
   static struct identifier i = { .id = 1 };
   PROCESS_EXITHANDLER(;)
   PROCESS_BEGIN();

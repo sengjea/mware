@@ -110,6 +110,7 @@ struct subscription_item {
 struct subscribe_message {
 	struct identifier id;
 	struct subscription sub;
+	uint8_t reading_count;	
 	clock_time_t remaining;
 };
 
