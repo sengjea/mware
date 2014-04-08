@@ -60,9 +60,10 @@
 #define DPRINT2ADDR(addr) DPRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define PRINT2ADDR(addr) PRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define MWARE_SIZE 10
-#define RANDOM_INTERVAL(i) ((i*CLOCK_SECOND/2)+random_rand()%(i*CLOCK_SECOND)) 
+#define RANDOM_INTERVAL(i) ((i/2)+random_rand()%(i)) 
 #define MWARE_INFINITE_COST 30
-#define MWARE_BEACON_INTERVAL 60 
+#define MWARE_BEACON_INTERVAL 30 
+#define MWARE_SLOT_SIZE CLOCK_SECOND
 #define MWARE_SHELFLIFE 120
 #define MWARE_ATTRIBUTES  { PACKETBUF_ATTR_PACKET_TYPE, PACKETBUF_ATTR_BIT* 4}, \
 	BROADCAST_ATTRIBUTES

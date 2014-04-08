@@ -46,7 +46,7 @@ AUTOSTART_PROCESSES(&mware_app);
 static void
 sense_callback(struct identifier *i, struct subscription *s) {
   uint16_t value;
-  value = random_rand()*256+random_rand();
+  value = 5000+random_rand()%512;
   switch (s->type) {
   case LIGHT: 
   case MAGNETOMETER:
@@ -54,7 +54,8 @@ sense_callback(struct identifier *i, struct subscription *s) {
     break;
   case ACCELEROMETER:
     break;
-  }
+  } 
+  PRINTF("sense(i:%d) = %lu\n", i->id, value); 
   leds_toggle(LEDS_YELLOW);
 }
 static void
@@ -76,13 +77,13 @@ PROCESS_THREAD(mware_app, ev, data)
       leds_on(LEDS_RED);  
       PRINTF("Going down...\n"); 
       mware_shutdown(); 
-      etimer_set(&et, RANDOM_INTERVAL(120));
+      etimer_set(&et, RANDOM_INTERVAL(240*CLOCK_SECOND));
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
       mware_bootstrap(128, &mware_cb);
       PRINTF("And we're back...\n"); 
     }
     leds_off(LEDS_RED);  
-    etimer_set(&et, RANDOM_INTERVAL(30));
+    etimer_set(&et, RANDOM_INTERVAL(60*CLOCK_SECOND));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   }
   PROCESS_END(); 

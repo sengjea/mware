@@ -50,7 +50,7 @@ sense_callback(struct identifier *i, struct subscription *s) {
 }
 static void
 publish_callback(struct identifier *i, uint16_t value){
-  PRINTF("Base Data i:%d v:%d\n",i->id,value);
+  //PRINTF("publish(i:%d v:%d)\n",i->id,value);
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 PROCESS_THREAD(mware_app, ev, data)
