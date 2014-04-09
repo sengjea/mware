@@ -42,8 +42,9 @@ subscription_print(struct subscription_item *si, char *title) {
 	PRINT2ADDR(&si->id.subscriber);
 	PRINTF(", i:%d, nh:", si->id.id);
 	PRINT2ADDR(&si->next_hop);
-	PRINTF(", c:%d, lh:%lu, ls:%lu\n", si->id.cost,
+	PRINTF(", c:%d, lh:%lu, ls:%lu ", si->id.cost,
 			si->last_heard, si->last_shout);
+	PRINTF("\n");
 }
 
 void
@@ -159,7 +160,7 @@ subscription_data_input(struct subscription_item *si, uint16_t v1, uint16_t v2) 
 	if (v2 == 0)  { 
 		return;	
 	}	
-	switch (si->sub.type) {
+	switch (si->sub.aggregation) {
 		case MIN:
 			if (si->v1 == 0 || v1 < si->v1) {
 				si->v1 = v1;
@@ -178,7 +179,7 @@ subscription_data_input(struct subscription_item *si, uint16_t v1, uint16_t v2) 
 }
 uint16_t
 subscription_data_output(struct subscription_item *si) {
-	switch (si->sub.type) {
+	switch (si->sub.aggregation) {
 		case MIN:
 		case MAX:
 			PRINTF("data_output: MAX|MIN %d,%d\n",si->v1, si->v2);	
@@ -290,7 +291,8 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 						(packetbuf_msg_sub())->id.cost + 1)) {
 				si = NULL;
 			}
-		} else {
+		} else if ((packetbuf_msg_sub())->sub.period
+			> (packetbuf_msg_sub())->id.cost * MWARE_SLOT_SIZE) {
 			si = subscription_insert(&(packetbuf_msg_sub())->id,
 					&(packetbuf_msg_sub())->sub,
 					( identifier_is_mine(&(packetbuf_msg_sub())->id) ?
@@ -316,17 +318,11 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 					(packetbuf_msg_pub())->v1,
 					(packetbuf_msg_pub())->v2);	
 		}  
-		if (identifier_is_mine(&si->id)) {
-			callback->publish(&si->id,
-					subscription_data_output(si)); 
-			//TODO: I'm the final destination...
-		}
 		break;
 	case MWARE_MSG_UNSUB:
 		si = subscription_get(&(packetbuf_msg_unsub())->id);
 		if (si != NULL) {
 			subscription_unsubscribe(si);
-			//subscription_print(si, "ru");	
 		}
 		break;
 	}
@@ -356,14 +352,19 @@ static void
 mware_service_item_publish(void *p) {
 	struct subscription_item *si = (struct subscription_item *) p;	
 	//PRINTF("msip\n");	
+	if (identifier_is_mine(&si->id)) {
+		callback->publish(&si->id,
+				subscription_data_output(si)); 
+		//TODO: I'm the final destination...
+	} else {
+		broadcast_publication(si);	
+	}	
 	if (subscription_needs_broadcast(si)) {
 		if (subscription_is_unsubscribed(si)) {
 			broadcast_unsubscription(si);
 		} else {
 			broadcast_subscription(si); 
 		} 
-	} else {
-		broadcast_publication(si);	
 	}
 	subscription_data_reset(si);
 	wind_item_publish_timer(si);	
