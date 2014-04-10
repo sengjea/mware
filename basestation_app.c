@@ -49,14 +49,14 @@ sense_callback(struct identifier *i, struct subscription *s) {
 
 }
 static void
-publish_callback(struct identifier *i, uint16_t value){
-  //PRINTF("publish(i:%d v:%d)\n",i->id,value);
+publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
+  PRINTF("publish(i:%d e:%d, v:%d)\n",i->id,s->epoch, value);
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 PROCESS_THREAD(mware_app, ev, data)
 {
   static struct subscription s = { .type = MAGNETOMETER,
-                            .aggregation = MIN,
+                            .aggregation = MAX,
                             .period = 10*CLOCK_SECOND }; 
   static struct identifier i = { .id = 1 };
   PROCESS_EXITHANDLER(;)

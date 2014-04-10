@@ -46,7 +46,7 @@ AUTOSTART_PROCESSES(&mware_app);
 static void
 sense_callback(struct identifier *i, struct subscription *s) {
   uint16_t value;
-  value = 5000+random_rand()%512;
+  value = 100*s->epoch+rimeaddr_node_addr.u8[0];
   switch (s->type) {
   case LIGHT: 
   case MAGNETOMETER:
@@ -55,11 +55,11 @@ sense_callback(struct identifier *i, struct subscription *s) {
   case ACCELEROMETER:
     break;
   } 
-  PRINTF("sense(i:%d) = %lu\n", i->id, value); 
+  PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
   leds_toggle(LEDS_YELLOW);
 }
 static void
-publish_callback(struct identifier *i, uint16_t value) {
+publish_callback(struct identifier *i, struct subscription *s, uint16_t value) {
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 
@@ -77,13 +77,13 @@ PROCESS_THREAD(mware_app, ev, data)
       leds_on(LEDS_RED);  
       PRINTF("Going down...\n"); 
       mware_shutdown(); 
-      etimer_set(&et, RANDOM_INTERVAL(240*CLOCK_SECOND));
+      etimer_set(&et, HALF_JITTER(240*CLOCK_SECOND));
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
       mware_bootstrap(128, &mware_cb);
       PRINTF("And we're back...\n"); 
     }
     leds_off(LEDS_RED);  
-    etimer_set(&et, RANDOM_INTERVAL(60*CLOCK_SECOND));
+    etimer_set(&et, HALF_JITTER(60*CLOCK_SECOND));
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   }
   PROCESS_END(); 

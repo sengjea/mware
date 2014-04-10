@@ -49,9 +49,9 @@
 #include "lib/random.h"
 #include "net/rime.h"
 #include <stddef.h>
-#define DEBUG 1 
+#define DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
-#if DEBUG
+#ifdef DEBUG
 #define DPRINTF(...) printf(__VA_ARGS__)
 #else
 #define DPRINTF(...)
@@ -60,7 +60,8 @@
 #define DPRINT2ADDR(addr) DPRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define PRINT2ADDR(addr) PRINTF("%02x%02x",(addr)->u8[1], (addr)->u8[0])
 #define MWARE_SIZE 10
-#define RANDOM_INTERVAL(i) ((i/2)+random_rand()%(i)) 
+#define HALF_JITTER(i) ((i/2)+random_rand()%(i)) 
+#define FULL_JITTER(i) (random_rand()%(i*2)) 
 #define MWARE_INFINITE_COST 30
 #define MWARE_BEACON_INTERVAL 30 
 #define MWARE_SLOT_SIZE (CLOCK_SECOND/2)
@@ -92,6 +93,8 @@ struct subscription {
 	enum sensor type;
 	enum analysis aggregation;
 	clock_time_t period;
+	clock_time_t jitter;
+	uint8_t epoch;
 };
 
 struct subscription_item {
@@ -103,16 +106,13 @@ struct subscription_item {
 	uint16_t v2;
 	clock_time_t last_heard;
 	clock_time_t last_shout;
-	struct ctimer sense_timer;
-	struct ctimer publish_timer;
+	struct ctimer t;
 };
 
 #define MWARE_MSG_SUB 0x1
 struct subscribe_message {
 	struct identifier id;
 	struct subscription sub;
-	uint8_t reading_count;	
-	clock_time_t remaining;
 };
 
 #define MWARE_MSG_PUB 0x2
@@ -131,7 +131,7 @@ struct unsubscribe_message {
 
 struct mware_callbacks {
 	void (*sense) (struct identifier *i, struct subscription *s);
-	void (*publish) (struct identifier *i, uint16_t value);
+	void (*publish) (struct identifier *i, struct subscription *s, uint16_t value);
 };
 
 void mware_bootstrap(uint16_t channel, const struct mware_callbacks *cb);
