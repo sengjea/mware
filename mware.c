@@ -8,10 +8,7 @@ static struct broadcast_conn connection;
 static const struct mware_callbacks *callback;
 static void wind_item_timer(struct subscription_item *si, clock_time_t remaining);
 static const struct packetbuf_attrlist attributes[] =
-{
-	MWARE_ATTRIBUTES
-		PACKETBUF_ATTR_LAST
-};
+{ MWARE_ATTRIBUTES PACKETBUF_ATTR_LAST };
 
 /*------------Subscription Manager (movable) -----------------*/
 LIST(subscription_list);
@@ -198,10 +195,21 @@ subscription_data_output(struct subscription_item *si) {
 	}
 	return 0;
 }
-clock_time_t
-subscription_time_to_next_sense(struct subscription_item *si) {
-	return timer_remaining(&si->t.etimer.timer)
+void
+subscription_sync_jitter(struct subscription *s, struct subscription_item *si) {
+	//Whatever set here will be negated later below.	
+	s->jitter = timer_remaining(&si->t.etimer.timer) 
 		+ (si->sub.jitter > 0 ? si->sub.period/2 - si->sub.jitter : 0);
+}
+clock_time_t
+subscription_desync_jitter(struct subscription_item *si, struct subscription *s) {
+	//This staggers the winding of the clock by a short slot time.	
+	si->sub.jitter = 0;
+	return s->jitter + si->sub.period - MWARE_SLOT_SIZE;
+}
+void
+subscription_sync_epoch(struct subscription_item *si, struct subscription *s) {
+	si->sub.epoch = s->epoch + 1;
 }
 /*----------------------------------------------*/
 int
@@ -233,8 +241,7 @@ broadcast_subscription(struct subscription_item *si) {
 	msg = packetbuf_dataptr();
 	memcpy(&msg->id, &si->id, sizeof(struct identifier));
 	memcpy(&msg->sub, &si->sub, sizeof(struct subscription));
-	//'Jitter' set here is reused later.	
-	subscription_set_jitter(&msg->sub,subscription_time_to_next_sense(si));	
+	subscription_sync_jitter(&msg->sub,si);	
 	if (broadcast_send(&connection)) {
 		subscription_print(si, "bs"); 
 		subscription_update_last_shout(si);	
@@ -296,11 +303,8 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 		if (si != NULL) {
 			if (subscription_is_unsubscribed(si)) {
 				subscription_reset_last_shout(si);	
-			} else if (subscription_update(si, (rimeaddr_t *) from,
+			} else if (!subscription_update(si, (rimeaddr_t *) from,
 						(packetbuf_msg_sub())->id.cost + 1)) {
-				//TODO: Fix this!	
-				si->sub.epoch = (packetbuf_msg_sub())->sub.epoch;	
-			} else {
 				si = NULL;
 			}
 		} else if ((packetbuf_msg_sub())->sub.period
@@ -312,12 +316,8 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 					(packetbuf_msg_sub())->id.cost + 1);	
 		}
 		if (si != NULL) {	
-			//TODO: Fix this +1 shit..
-			clock_time_t next_sense_time = subscription_get_jitter(&(packetbuf_msg_sub())->sub) +
-					si->sub.period - MWARE_SLOT_SIZE + 1;
-			si->sub.epoch++;	
-			subscription_set_jitter(&si->sub,1);	
-			wind_item_timer(si,next_sense_time);
+			subscription_sync_epoch(si, &(packetbuf_msg_sub())->sub);	
+			wind_item_timer(si,subscription_desync_jitter(si, &(packetbuf_msg_sub())->sub));
 		}	
 	break;
 	case MWARE_MSG_PUB:
@@ -348,8 +348,20 @@ static const struct broadcast_callbacks connection_cb = { packet_received };
 static void
 mware_service_item(void *p) {
 	struct subscription_item *si = (struct subscription_item *) p;	
-	//PRINTF("msip\n");	
-	if (subscription_get_jitter(&si->sub) > 0) {	
+	if (subscription_is_stale(si) &&
+			(!identifier_is_mine(&si->id) || subscription_is_unsubscribed(si))) {
+		subscription_remove(si); 
+		return;	
+	}	
+	if (subscription_get_jitter(&si->sub) > 0) {
+		wind_item_timer(si, si->sub.period/2 - subscription_get_jitter(&si->sub));	
+		subscription_set_jitter(&si->sub,0);
+	} else {
+		wind_item_timer(si, si->sub.period/2 +
+			subscription_set_jitter(&si->sub, FULL_JITTER(MWARE_SLOT_SIZE/2 - 1) + 1));
+	}
+	//NOTE: Test here is reversed because jitter values got set/reset above
+	if (subscription_get_jitter(&si->sub) == 0) {	
 		if (identifier_is_mine(&si->id)) {
 			callback->publish(&si->id,&si->sub,
 					subscription_data_output(si)); 
@@ -358,13 +370,7 @@ mware_service_item(void *p) {
 		}	
 		subscription_data_reset(si);
 	} else {
-		if (subscription_is_stale(si) &&
-				(!identifier_is_mine(&si->id) || subscription_is_unsubscribed(si))) {
-			subscription_remove(si); 
-			return;	
-		}	
 		if (!subscription_is_unsubscribed(si)) {
-			//PRINTF("cbs\n");	
 			callback->sense(&si->id, &si->sub); 
 		}
 		if (subscription_needs_broadcast(si)) {
@@ -375,20 +381,11 @@ mware_service_item(void *p) {
 			} 
 		}
 	}
-	wind_item_timer(si, si->sub.period/2);	
 }
+
 static void wind_item_timer(struct subscription_item *si, clock_time_t offset) {
-	clock_time_t next_time;	
-	if (subscription_get_jitter(&si->sub) > 0) {	
-		next_time = offset - subscription_get_jitter(&si->sub);	
-		subscription_set_jitter(&si->sub,0);
-	} else {
-		//Jitter must not be 0, defined as sense cycle.
-		next_time = offset +
-			subscription_set_jitter(&si->sub, FULL_JITTER(MWARE_SLOT_SIZE/2 - 1) + 1);
-	}	
 	if(ctimer_expired(&si->t)) {
-		ctimer_set(&si->t, next_time,
+		ctimer_set(&si->t, offset,
 			mware_service_item, si);
 	}
 }
@@ -407,7 +404,7 @@ mware_subscribe(struct identifier *i, struct subscription *s) {
 	struct subscription_item *si;	
 	si = subscription_insert(i, s, &i->subscriber, 0);
 	if (si != NULL) {	
-		wind_item_timer(si, si->sub.period/2);	
+		wind_item_timer(si, HALF_JITTER(2*CLOCK_SECOND));	
 		return 1;
 	} else {
 		return 0;
