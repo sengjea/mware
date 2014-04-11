@@ -59,19 +59,23 @@ PROCESS_THREAD(mware_app, ev, data)
                             .aggregation = MAX,
                             .period = 10*CLOCK_SECOND }; 
   static struct identifier i = { .id = 1 };
+  static struct etimer et; 
   PROCESS_EXITHANDLER(;)
   PROCESS_BEGIN();
   mware_bootstrap(128, &mware_cb);
+  etimer_set(&et, HALF_JITTER(15*CLOCK_SECOND));
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   while (1) {
-    PRINTF("<press button to subscribe>\n");
-    PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
-         data == &button_sensor);
     rimeaddr_copy(&i.subscriber, &rimeaddr_node_addr); 
     mware_subscribe(&i,&s);
     PRINTF("<press button to unsubscribe>\n");
     PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
          data == &button_sensor);
     mware_unsubscribe(&i);
+    i.id++;  
+    PRINTF("<press button to subscribe>\n");
+    PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
+         data == &button_sensor);
   }
   PROCESS_END(); 
 }

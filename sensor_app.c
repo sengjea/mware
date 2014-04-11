@@ -46,7 +46,7 @@ AUTOSTART_PROCESSES(&mware_app);
 static void
 sense_callback(struct identifier *i, struct subscription *s) {
   uint16_t value;
-  value = 100*s->epoch+rimeaddr_node_addr.u8[0];
+  value = 100*s->epoch+HALF_JITTER(50);
   switch (s->type) {
   case LIGHT: 
   case MAGNETOMETER:

@@ -7,14 +7,14 @@
   <project EXPORT="discard">[CONTIKI_DIR]/tools/cooja/apps/collect-view</project>
   <project EXPORT="discard">[CONTIKI_DIR]/tools/cooja/apps/powertracker</project>
   <simulation>
-    <title>Mware Sim</title>
+    <title>Line Simulation</title>
     <speedlimit>10.0</speedlimit>
     <randomseed>generated</randomseed>
     <motedelay_us>1000000</motedelay_us>
     <radiomedium>
       se.sics.cooja.radiomediums.UDGM
       <transmitting_range>60.0</transmitting_range>
-      <interference_range>100.0</interference_range>
+      <interference_range>120.0</interference_range>
       <success_ratio_tx>1.0</success_ratio_tx>
       <success_ratio_rx>1.0</success_ratio_rx>
     </radiomedium>
@@ -23,8 +23,8 @@
     </events>
     <motetype>
       se.sics.cooja.contikimote.ContikiMoteType
-      <identifier>mtype713</identifier>
-      <description>Base Station</description>
+      <identifier>mtype266</identifier>
+      <description>Basestation</description>
       <source>[CONTIKI_DIR]/mware/basestation_app.c</source>
       <commands>make basestation_app.cooja TARGET=cooja</commands>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
@@ -47,8 +47,8 @@
     </motetype>
     <motetype>
       se.sics.cooja.contikimote.ContikiMoteType
-      <identifier>mtype448</identifier>
-      <description>Sensor Nodes</description>
+      <identifier>mtype408</identifier>
+      <description>Sensormote</description>
       <source>[CONTIKI_DIR]/mware/sensor_app.c</source>
       <commands>make sensor_app.cooja TARGET=cooja</commands>
       <moteinterface>se.sics.cooja.interfaces.Position</moteinterface>
@@ -72,85 +72,85 @@
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>0.0</x>
-        <y>0.0</y>
+        <x>-25.42760566674461</x>
+        <y>-14.198559256908014</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>1</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype266</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
         <x>0.0</x>
-        <y>50.0</y>
+        <y>0.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>2</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>0.0</x>
-        <y>100.0</y>
+        <x>50.0</x>
+        <y>0.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>3</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>0.0</x>
-        <y>150.0</y>
+        <x>100.0</x>
+        <y>0.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>4</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>0.0</x>
-        <y>200.0</y>
+        <x>150.0</x>
+        <y>0.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>5</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>0.0</x>
-        <y>250.0</y>
+        <x>200.0</x>
+        <y>0.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>6</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>50.0</x>
+        <x>250.0</x>
         <y>0.0</y>
         <z>0.0</z>
       </interface_config>
@@ -158,428 +158,300 @@
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>7</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>50.0</x>
-        <y>50.0</y>
+        <x>0.0</x>
+        <y>90.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>8</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
         <x>50.0</x>
-        <y>100.0</y>
+        <y>90.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>9</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>50.0</x>
-        <y>150.0</y>
+        <x>100.0</x>
+        <y>90.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>10</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>50.0</x>
-        <y>200.0</y>
+        <x>150.0</x>
+        <y>90.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>11</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>50.0</x>
-        <y>250.0</y>
+        <x>200.0</x>
+        <y>90.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>12</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>100.0</x>
-        <y>0.0</y>
+        <x>250.0</x>
+        <y>90.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>13</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>100.0</x>
-        <y>50.0</y>
+        <x>0.0</x>
+        <y>180.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>14</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>100.0</x>
-        <y>100.0</y>
+        <x>50.0</x>
+        <y>180.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>15</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
         <x>100.0</x>
-        <y>150.0</y>
+        <y>180.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>16</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>100.0</x>
-        <y>200.0</y>
+        <x>150.0</x>
+        <y>180.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>17</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>100.0</x>
-        <y>250.0</y>
+        <x>200.0</x>
+        <y>180.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>18</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>150.0</x>
-        <y>0.0</y>
+        <x>250.0</x>
+        <y>180.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>19</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>150.0</x>
-        <y>50.0</y>
+        <x>0.0</x>
+        <y>270.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>20</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>150.0</x>
-        <y>100.0</y>
+        <x>50.0</x>
+        <y>270.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>21</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>150.0</x>
-        <y>150.0</y>
+        <x>100.0</x>
+        <y>270.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>22</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
         <x>150.0</x>
-        <y>200.0</y>
+        <y>270.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>23</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>150.0</x>
-        <y>250.0</y>
+        <x>200.0</x>
+        <y>270.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>24</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>200.0</x>
-        <y>0.0</y>
+        <x>250.0</x>
+        <y>270.0</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>25</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>200.0</x>
-        <y>50.0</y>
+        <x>250.0237438604698</x>
+        <y>45.23101273012797</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>26</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>200.0</x>
-        <y>100.0</y>
+        <x>-2.787768719302332</x>
+        <y>134.84703398042032</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>27</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
     <mote>
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>200.0</x>
-        <y>150.0</y>
+        <x>250.0237438604698</x>
+        <y>225.40638177018945</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         se.sics.cooja.contikimote.interfaces.ContikiMoteID
         <id>28</id>
       </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>200.0</x>
-        <y>200.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>29</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>200.0</x>
-        <y>250.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>30</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>250.0</x>
-        <y>0.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>31</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>250.0</x>
-        <y>50.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>32</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>250.0</x>
-        <y>100.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>33</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>250.0</x>
-        <y>150.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>34</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>250.0</x>
-        <y>200.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>35</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>250.0</x>
-        <y>250.0</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>36</id>
-      </interface_config>
-      <motetype_identifier>mtype448</motetype_identifier>
-    </mote>
-    <mote>
-      <interface_config>
-        se.sics.cooja.interfaces.Position
-        <x>121.82080924855491</x>
-        <y>126.58959537572257</y>
-        <z>0.0</z>
-      </interface_config>
-      <interface_config>
-        se.sics.cooja.contikimote.interfaces.ContikiMoteID
-        <id>37</id>
-      </interface_config>
-      <motetype_identifier>mtype713</motetype_identifier>
+      <motetype_identifier>mtype408</motetype_identifier>
     </mote>
   </simulation>
   <plugin>
     se.sics.cooja.plugins.SimControl
-    <width>401</width>
-    <z>0</z>
+    <width>359</width>
+    <z>1</z>
     <height>149</height>
-    <location_x>1</location_x>
+    <location_x>0</location_x>
     <location_y>400</location_y>
   </plugin>
   <plugin>
     se.sics.cooja.plugins.LogListener
     <plugin_config>
-      <filter>ID:21|ID:27</filter>
+      <filter />
     </plugin_config>
-    <width>625</width>
-    <z>1</z>
-    <height>549</height>
-    <location_x>397</location_x>
+    <width>622</width>
+    <z>2</z>
+    <height>403</height>
+    <location_x>401</location_x>
     <location_y>0</location_y>
-  </plugin>
-  <plugin>
-    se.sics.cooja.plugins.RadioLogger
-    <plugin_config>
-      <split>150</split>
-    </plugin_config>
-    <width>500</width>
-    <z>3</z>
-    <height>300</height>
-    <location_x>112</location_x>
-    <location_y>188</location_y>
   </plugin>
   <plugin>
     se.sics.cooja.plugins.Visualizer
@@ -589,13 +461,24 @@
       <skin>se.sics.cooja.plugins.skins.TrafficVisualizerSkin</skin>
       <skin>se.sics.cooja.plugins.skins.UDGMVisualizerSkin</skin>
       <skin>se.sics.cooja.plugins.skins.LEDVisualizerSkin</skin>
-      <viewport>1.258181818181818 0.0 0.0 1.258181818181818 36.727272727272755 15.727272727272727</viewport>
+      <viewport>1.0600783060282324 0.0 0.0 1.0600783060282324 75.95525314155651 44.051584645104526</viewport>
     </plugin_config>
     <width>400</width>
-    <z>2</z>
+    <z>0</z>
     <height>400</height>
-    <location_x>1</location_x>
-    <location_y>1</location_y>
+    <location_x>0</location_x>
+    <location_y>3</location_y>
+  </plugin>
+  <plugin>
+    se.sics.cooja.plugins.RadioLogger
+    <plugin_config>
+      <split>61</split>
+    </plugin_config>
+    <width>666</width>
+    <z>3</z>
+    <height>151</height>
+    <location_x>357</location_x>
+    <location_y>401</location_y>
   </plugin>
 </simconf>
 
