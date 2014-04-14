@@ -49,7 +49,7 @@
 #include "lib/random.h"
 #include "net/rime.h"
 #include <stddef.h>
-#define DEBUG
+//#define DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #ifdef DEBUG
 #define DPRINTF(...) printf(__VA_ARGS__)
@@ -80,7 +80,8 @@ struct identifier {
 enum analysis {
 	MAX = 0x1,
 	MIN = 0x2,
-	AVG = 0x3
+	AVG = 0x3,
+	COUNT = 0x4
 };
 
 enum sensor {
@@ -95,6 +96,7 @@ struct subscription {
 	clock_time_t period;
 	clock_time_t jitter;
 	uint8_t epoch;
+	clock_time_t slot_size;
 };
 
 struct subscription_item {

@@ -40,7 +40,6 @@
 #include "dev/button-sensor.h"
 #include "mware.h"
 #include <stdio.h>
-
 PROCESS(mware_app, "Middleware App");
 AUTOSTART_PROCESSES(&mware_app);
 
@@ -50,34 +49,42 @@ sense_callback(struct identifier *i, struct subscription *s) {
 }
 static void
 publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
-  PRINTF("publish(i:%d e:%d, v:%d)\n",i->id,s->epoch, value);
+	PRINTF("publish(i:%d e:%d, v:%d)\n",i->id,s->epoch, value);
+}
+static int
+modify_test(struct identifier *id, struct subscription *s) {
+	static int i = 0;
+	if (i >= 20) return 0;		
+	s->type = MAGNETOMETER;
+	s->aggregation = COUNT;	
+	s->period = 2*(i+1)*CLOCK_SECOND; 
+	s->slot_size = CLOCK_SECOND/2;	
+	id->id = i++; 
+	rimeaddr_copy(&id->subscriber, &rimeaddr_node_addr); 
+	return 1;
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
 PROCESS_THREAD(mware_app, ev, data)
 {
-  static struct subscription s = { .type = MAGNETOMETER,
-                            .aggregation = MAX,
-                            .period = 10*CLOCK_SECOND }; 
-  static struct identifier i = { .id = 1 };
-  static struct etimer et; 
-  PROCESS_EXITHANDLER(;)
-  PROCESS_BEGIN();
-  mware_bootstrap(128, &mware_cb);
-  etimer_set(&et, HALF_JITTER(15*CLOCK_SECOND));
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-  while (1) {
-    rimeaddr_copy(&i.subscriber, &rimeaddr_node_addr); 
-    mware_subscribe(&i,&s);
-    PRINTF("<press button to unsubscribe>\n");
-    PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
-         data == &button_sensor);
-    mware_unsubscribe(&i);
-    i.id++;  
-    PRINTF("<press button to subscribe>\n");
-    PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
-         data == &button_sensor);
-  }
-  PROCESS_END(); 
+	static struct subscription s; 
+	static struct identifier id;
+	static struct etimer et; 
+	static int i; 
+	PROCESS_EXITHANDLER(;)
+		PROCESS_BEGIN();
+	mware_bootstrap(128, &mware_cb);
+	while (modify_test(&id, &s)) {
+		etimer_set(&et, HALF_JITTER(60*CLOCK_SECOND));
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		mware_subscribe(&id,&s);
+		for (i = 0; i < 20; i++) {
+			etimer_set(&et, 60*CLOCK_SECOND);
+			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		}
+		mware_unsubscribe(&id);
+	} 
+	PROCESS_END(); 
 }
 
 
+/* vim: set ts=8 sw=8 tw=80 noet :*/

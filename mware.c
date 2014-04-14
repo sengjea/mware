@@ -39,6 +39,8 @@ subscription_print(struct subscription_item *si, char *title) {
 	DPRINTF(", i:%d, nh:", si->id.id);
 	DPRINT2ADDR(&si->next_hop);
 	DPRINTF(", c:%d, e:%d\n", si->id.cost, si->sub.epoch);
+	DPRINTF("-  lh:%d, ls:%d", si->last_heard, si->last_shout);
+	DPRINTF(", v1:%d, v2:%d\n", si->v1, si->v2);
 }
 
 void
@@ -74,10 +76,17 @@ subscription_update(struct subscription_item *si,
 		rimeaddr_t *next_hop, uint8_t cost) {
 	if (rimeaddr_cmp(&si->next_hop, next_hop)) {
 		if (si->id.cost != cost) {	
+			
+			DPRINTF("new_cost %d -> %d\n", si->id.cost, cost);
 			si->id.cost = cost;
 			return 1;
 		}
 	} else if (cost < si->id.cost) {
+		DPRINTF("new_parent ");
+		DPRINT2ADDR(&si->next_hop);
+		DPRINTF(" -> ");
+		DPRINT2ADDR(next_hop);
+		DPRINTF("\n");
 		rimeaddr_copy(&si->next_hop, next_hop);
 		si->id.cost = cost;
 		return 1;
@@ -145,12 +154,12 @@ subscription_is_unsubscribed(struct subscription_item *si) {
 }	
 int 
 subscription_is_stale(struct subscription_item *si) {
-	return (si->last_heard + MWARE_SHELFLIFE < clock_seconds());
+	return (si->last_heard + 2*(si->sub.period/CLOCK_SECOND) < clock_seconds());
 }	
 int
 subscription_needs_broadcast(struct subscription_item *si) {
 	return (si->last_shout == 0 ||
-			si->last_shout + MWARE_BEACON_INTERVAL < clock_seconds());
+			si->last_shout + 4*(si->sub.period/CLOCK_SECOND) < clock_seconds());
 }
 void
 subscription_data_reset(struct subscription_item *si) {
@@ -165,12 +174,12 @@ subscription_data_input(struct subscription_item *si, uint16_t v1, uint16_t v2) 
 	}	
 	switch (si->sub.aggregation) {
 		case MIN:
-			if (si->v1 == 0 || v1 < si->v1) {
+			if (si->v2 == 0 || v1 < si->v1) {
 				si->v1 = v1;
 			}
 			break;
 		case MAX:
-			if (si->v1 == 0 || v1 > si->v1) {
+			if (si->v2 == 0 || v1 > si->v1) {
 				si->v1 = v1;
 			}
 			break;
@@ -185,13 +194,13 @@ subscription_data_output(struct subscription_item *si) {
 	switch (si->sub.aggregation) {
 		case MIN:
 		case MAX:
-			//PRINTF("data_output: MAX|MIN %d,%d\n",si->v1, si->v2);	
 			return si->v1;  
 		case AVG:
-			//PRINTF("data_output: AVG %d,%d\n",si->v1, si->v2);	
 			if (si->v2 > 0) {
 				return si->v1/si->v2; 
 			}
+		case COUNT:
+			return si->v2;	
 	}
 	return 0;
 }
@@ -205,12 +214,15 @@ clock_time_t
 subscription_desync_jitter(struct subscription_item *si, struct subscription *s) {
 	//This staggers the winding of the clock by a short slot time.	
 	si->sub.jitter = 0;
-	return s->jitter + si->sub.period - MWARE_SLOT_SIZE;
+	return s->jitter + (s->slot_size >= s->jitter ? si->sub.period : 0)
+			- s->slot_size;	
+
 }
 void
 subscription_sync_epoch(struct subscription_item *si, struct subscription *s) {
-	//This is +2 because the sync jitter will only begin to fire then.	
-	si->sub.epoch = s->epoch + 2;
+	//This is +1 because the sync jitter will only begin one period later
+	//(see above).	
+	si->sub.epoch = s->epoch + (s->slot_size >= s->jitter ? 1 : 0);
 }
 /*----------------------------------------------*/
 int
@@ -246,8 +258,6 @@ broadcast_subscription(struct subscription_item *si) {
 	if (broadcast_send(&connection)) {
 		subscription_print(si, "bs"); 
 		subscription_update_last_shout(si);	
-	} else {
-		PRINTF("bs #!\n");	
 	}
 }
 void
@@ -263,8 +273,6 @@ broadcast_publication(struct subscription_item *si) {
 	msg->v2 = si->v2; 
 	if (broadcast_send(&connection)) {
 		subscription_print(si, "bp");	
-	} else {
-		PRINTF("bp #!\n");	
 	}
 }
 void
@@ -278,8 +286,6 @@ broadcast_unsubscription(struct subscription_item *si) {
 	if (broadcast_send(&connection)) {
 		subscription_print(si, "bu"); 
 		subscription_update_last_shout(si);	
-	} else {
-		PRINTF("bu #!\n");	
 	}
 }
 /*-------------------Broadcast Reception---------------------------*/
@@ -316,7 +322,7 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 				si = NULL;
 			}
 		} else if ((packetbuf_msg_sub())->sub.period
-			> (packetbuf_msg_sub())->id.cost * MWARE_SLOT_SIZE) {
+			> (packetbuf_msg_sub())->id.cost * (packetbuf_msg_sub())->sub.slot_size) {
 			si = subscription_insert(&(packetbuf_msg_sub())->id,
 					&(packetbuf_msg_sub())->sub,
 					( identifier_is_mine(&(packetbuf_msg_sub())->id) ?
@@ -362,32 +368,31 @@ mware_service_item(void *p) {
 		return;	
 	}	
 	//NOTE: No jitter means ready to sense, else ready to publish
-	if (subscription_get_jitter(&si->sub) == 0) {	
-		wind_item_timer(si, si->sub.period/2 +
-			subscription_set_jitter(&si->sub, FULL_JITTER(MWARE_SLOT_SIZE/2 - 1) + 1));
+	if (subscription_get_jitter(&si->sub) > 0) {	
+		wind_item_timer(si, si->sub.period/2 - subscription_get_jitter(&si->sub));	
+		subscription_set_jitter(&si->sub,0);
 
-		if (!subscription_is_unsubscribed(si)) {
+		if (subscription_is_unsubscribed(si)) {
+			if (subscription_needs_broadcast(si)) {
+				broadcast_unsubscription(si);
+			} 
+		} else {
 			if (identifier_is_mine(&si->id)) {
 				callback->publish(&si->id,&si->sub,
 						subscription_data_output(si)); 
-			} else {
-				broadcast_publication(si);	
 			}	
+			broadcast_publication(si);	
 			subscription_data_reset(si);
+			if (subscription_needs_broadcast(si)) {
+				broadcast_subscription(si); 
+			} 
 		}
 	} else {
-		wind_item_timer(si, si->sub.period/2 - subscription_get_jitter(&si->sub));	
-		subscription_set_jitter(&si->sub,0);
+		wind_item_timer(si, si->sub.period/2 +
+			subscription_set_jitter(&si->sub, FULL_JITTER(si->sub.slot_size/2 - 1) + 1));
 		
 		if (!subscription_is_unsubscribed(si)) {
 			callback->sense(&si->id, &si->sub); 
-		}
-		if (subscription_needs_broadcast(si)) {
-			if (subscription_is_unsubscribed(si)) {
-				broadcast_unsubscription(si);
-			} else {
-				broadcast_subscription(si); 
-			} 
 		}
 	}
 }
