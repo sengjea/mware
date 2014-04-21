@@ -49,7 +49,7 @@
 #include "lib/random.h"
 #include "net/rime.h"
 #include <stddef.h>
-//#define DEBUG
+#define DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #ifdef DEBUG
 #define DPRINTF(...) printf(__VA_ARGS__)
@@ -62,7 +62,6 @@
 #define MWARE_SIZE 10
 #define HALF_JITTER(i) ((i/2)+random_rand()%(i)) 
 #define FULL_JITTER(i) (random_rand()%(i*2)) 
-#define MWARE_INFINITE_COST 30
 #define MWARE_BEACON_INTERVAL 30 
 #define MWARE_SLOT_SIZE (CLOCK_SECOND)
 #define MWARE_SHELFLIFE 120
@@ -71,12 +70,8 @@
 struct identifier {
 	rimeaddr_t subscriber;
 	uint16_t id;
-	uint16_t cost;
 };
-//struct verifier {
-//  uint32_t nonce;
-//  uint32_t response;
-//};
+
 enum analysis {
 	MAX = 0x1,
 	MIN = 0x2,
@@ -94,18 +89,18 @@ struct subscription {
 	enum sensor type;
 	enum analysis aggregation;
 	clock_time_t period;
-	clock_time_t jitter;
-	uint8_t epoch;
 	clock_time_t slot_size;
+	clock_time_t jitter;
+	uint16_t epoch;
+	uint16_t hops;
 };
-
 struct subscription_item {
 	struct subscription_item *next;
 	struct identifier id;
 	struct subscription sub;
 	rimeaddr_t next_hop;
-	uint16_t v1;
-	uint16_t v2;
+	uint16_t data;
+	uint16_t node_count;
 	clock_time_t last_heard;
 	clock_time_t last_shout;
 	struct ctimer t;
@@ -121,8 +116,8 @@ struct subscribe_message {
 struct publish_message {
 	struct identifier id;
 	rimeaddr_t next_hop;
-	uint16_t v1;
-	uint16_t v2;
+	uint16_t data;
+	uint16_t node_count;
 };
 
 #define MWARE_MSG_UNSUB 0x3
@@ -139,7 +134,7 @@ struct mware_callbacks {
 void mware_bootstrap(uint16_t channel, const struct mware_callbacks *cb);
 
 int mware_subscribe(struct identifier *i, struct subscription *s);
-void mware_publish(struct identifier *i, uint16_t v1, uint16_t v2);
+void mware_publish(struct identifier *i, uint16_t data, uint16_t node_count);
 void mware_unsubscribe(struct identifier *i);
 void mware_shutdown(void);
 #endif /* __MWARE_H__*/

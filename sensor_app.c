@@ -45,19 +45,19 @@ PROCESS(mware_app, "Middleware App");
 AUTOSTART_PROCESSES(&mware_app);
 static void
 sense_callback(struct identifier *i, struct subscription *s) {
-  uint16_t value;
-  //value = 100*s->epoch+HALF_JITTER(50);
-  value = 100*s->epoch+rimeaddr_node_addr.u8[0];
-  switch (s->type) {
-  case LIGHT: 
-  case MAGNETOMETER:
-    mware_publish(i, value, 1);
-    break;
-  case ACCELEROMETER:
-    break;
-  } 
-  PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
-  leds_toggle(LEDS_YELLOW);
+	uint16_t value;
+	//value = 100*s->epoch+HALF_JITTER(50);
+	value = 100*s->epoch+rimeaddr_node_addr.u8[0];
+	switch (s->type) {
+	case LIGHT: 
+	case MAGNETOMETER:
+		mware_publish(i, value, 1);
+		break;
+	case ACCELEROMETER:
+		break;
+	} 
+	PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
+	leds_toggle(LEDS_YELLOW);
 }
 static void
 publish_callback(struct identifier *i, struct subscription *s, uint16_t value) {
@@ -66,22 +66,27 @@ static const struct mware_callbacks mware_cb = { sense_callback, publish_callbac
 
 PROCESS_THREAD(mware_app, ev, data)
 {
-  static struct etimer et;
-  PROCESS_EXITHANDLER(;)
-  PROCESS_BEGIN();
-  random_init(rimeaddr_node_addr.u8[0]);
-  //TODO: Initialise random set of available sensors.
-  while (1) {
-      leds_on(LEDS_GREEN);  
-      mware_bootstrap(128, &mware_cb);
-      PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
-          data == &button_sensor);
-      leds_off(LEDS_GREEN);  
-      mware_shutdown(); 
-      PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
-          data == &button_sensor);
-  }
-  PROCESS_END(); 
+	static struct etimer et; 
+	PROCESS_EXITHANDLER(;)
+		PROCESS_BEGIN();
+	random_init(rimeaddr_node_addr.u8[0]);
+
+	leds_on(LEDS_GREEN);  
+	mware_bootstrap(128, &mware_cb);
+	while (1) {
+		if (random_rand() % 100 < 5) { 
+			leds_off(LEDS_GREEN);  
+			mware_shutdown(); 
+			etimer_set(&et, 300*CLOCK_SECOND);
+			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+			leds_on(LEDS_GREEN);  
+			mware_bootstrap(128, &mware_cb);
+		} 
+		etimer_set(&et, 150*CLOCK_SECOND);
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+	}
+	PROCESS_END(); 
 }
 
 
+/* vim: set ts=8 sw=8 tw=80 noet :*/

@@ -54,11 +54,11 @@ publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
 static int
 modify_test(struct identifier *id, struct subscription *s) {
 	static int i = 0;
-	if (i >= 32) return 0;		
+	if (i >= 32) return 0;	
 	s->type = MAGNETOMETER;
 	s->aggregation = COUNT;	
-	s->period = 2*(i+1)*CLOCK_SECOND; 
-	s->slot_size = CLOCK_SECOND;	
+	s->period = 60*CLOCK_SECOND;	
+	s->slot_size = 4*CLOCK_SECOND; 
 	id->id = i++; 
 	rimeaddr_copy(&id->subscriber, &rimeaddr_node_addr); 
 	return 1;
@@ -69,7 +69,6 @@ PROCESS_THREAD(mware_app, ev, data)
 	static struct subscription s; 
 	static struct identifier id;
 	static struct etimer et; 
-	static int i; 
 	PROCESS_EXITHANDLER(;)
 		PROCESS_BEGIN();
 	mware_bootstrap(128, &mware_cb);
@@ -77,10 +76,8 @@ PROCESS_THREAD(mware_app, ev, data)
 		etimer_set(&et, HALF_JITTER(60*CLOCK_SECOND));
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 		mware_subscribe(&id,&s);
-		for (i = 0; i < 20; i++) {
-			etimer_set(&et, 60*CLOCK_SECOND);
-			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-		}
+		PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
+				data == &button_sensor);
 		mware_unsubscribe(&id);
 	} 
 	PROCESS_END(); 

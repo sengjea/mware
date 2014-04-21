@@ -54,7 +54,7 @@ publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
 static int
 modify_test(struct identifier *id, struct subscription *s) {
 	static int i = 0;
-	if (i >= 20) return 0;	
+	if (i >= 32) return 0;	
 	s->type = MAGNETOMETER;
 	s->aggregation = COUNT;	
 	s->period = 10*CLOCK_SECOND;	

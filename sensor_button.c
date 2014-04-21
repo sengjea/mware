@@ -40,51 +40,47 @@
 #include "dev/button-sensor.h"
 #include "mware.h"
 #include <stdio.h>
+
 PROCESS(mware_app, "Middleware App");
 AUTOSTART_PROCESSES(&mware_app);
-
 static void
 sense_callback(struct identifier *i, struct subscription *s) {
-
+  uint16_t value;
+  //value = 100*s->epoch+HALF_JITTER(50);
+  value = 100*s->epoch+rimeaddr_node_addr.u8[0];
+  switch (s->type) {
+  case LIGHT: 
+  case MAGNETOMETER:
+    mware_publish(i, value, 1);
+    break;
+  case ACCELEROMETER:
+    break;
+  } 
+  PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
+  leds_toggle(LEDS_YELLOW);
 }
 static void
-publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
-	PRINTF("publish(i:%d e:%d, v:%d)\n",i->id,s->epoch, value);
-}
-static int
-modify_test(struct identifier *id, struct subscription *s) {
-	static int i = 0;
-	if (i >= 32) return 0;		
-	s->type = MAGNETOMETER;
-	s->aggregation = COUNT;	
-	s->period = 2*(i+1)*CLOCK_SECOND; 
-	s->slot_size = CLOCK_SECOND;	
-	id->id = i++; 
-	rimeaddr_copy(&id->subscriber, &rimeaddr_node_addr); 
-	return 1;
+publish_callback(struct identifier *i, struct subscription *s, uint16_t value) {
 }
 static const struct mware_callbacks mware_cb = { sense_callback, publish_callback };
+
 PROCESS_THREAD(mware_app, ev, data)
 {
-	static struct subscription s; 
-	static struct identifier id;
-	static struct etimer et; 
-	static int i; 
-	PROCESS_EXITHANDLER(;)
-		PROCESS_BEGIN();
-	mware_bootstrap(128, &mware_cb);
-	while (modify_test(&id, &s)) {
-		etimer_set(&et, HALF_JITTER(60*CLOCK_SECOND));
-		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-		mware_subscribe(&id,&s);
-		for (i = 0; i < 20; i++) {
-			etimer_set(&et, 60*CLOCK_SECOND);
-			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-		}
-		mware_unsubscribe(&id);
-	} 
-	PROCESS_END(); 
+  PROCESS_EXITHANDLER(;)
+  PROCESS_BEGIN();
+  random_init(rimeaddr_node_addr.u8[0]);
+  //TODO: Initialise random set of available sensors.
+  while (1) {
+      leds_on(LEDS_GREEN);  
+      mware_bootstrap(128, &mware_cb);
+      PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
+          data == &button_sensor);
+      leds_off(LEDS_GREEN);  
+      mware_shutdown(); 
+      PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
+          data == &button_sensor);
+  }
+  PROCESS_END(); 
 }
 
 
-/* vim: set ts=8 sw=8 tw=80 noet :*/
