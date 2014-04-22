@@ -67,30 +67,20 @@ static const struct mware_callbacks mware_cb = { sense_callback, publish_callbac
 PROCESS_THREAD(mware_app, ev, data)
 {
 	static struct etimer et;
-	static int running, i;	
+	static int i;	
 	PROCESS_EXITHANDLER(;)
-		PROCESS_BEGIN();
+	PROCESS_BEGIN();
 	random_init(rimeaddr_node_addr.u8[0]);
 
 	leds_on(LEDS_GREEN);  
+	leds_on(LEDS_RED);	
 	mware_bootstrap(128, &mware_cb);
-	running = 1;	
-	while (1) {
-		if (random_rand() % 100 < 0) { 
-			running = 0;	
-			leds_off(LEDS_GREEN);  
-			mware_shutdown(); 
-		} 
-		for (i = 0; i < 10; i++) {	
-			etimer_set(&et, 60*CLOCK_SECOND);
-			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-		}
-		if (!running) {
-			running = 1;	
-			leds_on(LEDS_GREEN);  
-			mware_bootstrap(128, &mware_cb);
-		}		
+	for (i = 0; i < 30; i++) {
+		etimer_set(&et, 60*CLOCK_SECOND);
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 	}
+		leds_off(LEDS_ALL);  
+		mware_shutdown(); 
 	PROCESS_END(); 
 }
 

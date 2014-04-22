@@ -58,7 +58,7 @@ modify_test(struct identifier *id, struct subscription *s) {
 	s->type = MAGNETOMETER;
 	s->aggregation = COUNT;	
 	s->period = 60*CLOCK_SECOND;	
-	s->slot_size = CLOCK_SECOND/16; 
+	s->slot_size = 1*CLOCK_SECOND; 
 	id->id = i++; 
 	rimeaddr_copy(&id->subscriber, &rimeaddr_node_addr); 
 	return 1;
@@ -72,13 +72,15 @@ PROCESS_THREAD(mware_app, ev, data)
 	PROCESS_EXITHANDLER(;)
 		PROCESS_BEGIN();
 	mware_bootstrap(128, &mware_cb);
+	etimer_set(&et, HALF_JITTER(60*CLOCK_SECOND));
+	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 	while (modify_test(&id, &s)) {
-		etimer_set(&et, HALF_JITTER(60*CLOCK_SECOND));
-		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 		mware_subscribe(&id,&s);
 		PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
 				data == &button_sensor);
 		mware_unsubscribe(&id);
+		PROCESS_WAIT_EVENT_UNTIL(ev   == sensors_event &&
+				data == &button_sensor);
 	} 
 	PROCESS_END(); 
 }

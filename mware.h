@@ -49,7 +49,7 @@
 #include "lib/random.h"
 #include "net/rime.h"
 #include <stddef.h>
-#define DEBUG
+//#define DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #ifdef DEBUG
 #define DPRINTF(...) printf(__VA_ARGS__)
