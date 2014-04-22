@@ -56,7 +56,7 @@ sense_callback(struct identifier *i, struct subscription *s) {
 	case ACCELEROMETER:
 		break;
 	} 
-	PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
+	//PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
 	leds_toggle(LEDS_YELLOW);
 }
 static void
@@ -74,7 +74,7 @@ PROCESS_THREAD(mware_app, ev, data)
 	leds_on(LEDS_GREEN);  
 	mware_bootstrap(128, &mware_cb);
 	while (1) {
-		if (random_rand() % 100 < 5) { 
+		if (random_rand() % 100 < 10) { 
 			leds_off(LEDS_GREEN);  
 			mware_shutdown(); 
 			etimer_set(&et, 300*CLOCK_SECOND);

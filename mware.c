@@ -64,21 +64,27 @@ subscription_update_last_shout(struct subscription_item *si) {
 }
 int
 subscription_update(struct subscription_item *si,
-		rimeaddr_t *next_hop, uint8_t hops) {
+		const rimeaddr_t *next_hop, uint8_t hops) {
+	hops = hops < MWARE_INFINITE_HOPS ? hops : MWARE_INFINITE_HOPS;	
 	if (rimeaddr_cmp(&si->next_hop, next_hop)) {
+		subscription_update_last_heard(si);	
 		if (si->sub.hops != hops) {
-			PRINTF("new_hops %d -> %d\n", si->sub.hops, hops);
+			DPRINTF("new_hops %d -> %d\n", si->sub.hops, hops);
 			si->sub.hops = hops;
+			subscription_reset_last_shout(si);	
 			return 1;
 		}
-	} else if (hops < si->sub.hops) {
+	} else if (hops < si->sub.hops && si->last_shout > 0) {
 		DPRINTF("new_parent ");
 		DPRINT2ADDR(&si->next_hop);
 		DPRINTF(" -> ");
 		DPRINT2ADDR(next_hop);
 		DPRINTF("\n");
+		DPRINTF("new_hops %d -> %d\n", si->sub.hops, hops);
 		rimeaddr_copy(&si->next_hop, next_hop);
 		si->sub.hops = hops;
+		subscription_update_last_heard(si);	
+		subscription_reset_last_shout(si);	
 		return 1;
 	}
 	return 0;
@@ -111,6 +117,12 @@ subscription_set_jitter(struct subscription *s, clock_time_t j) {
 	s->jitter = j;
 	return j;
 }
+
+void
+subscription_set_hops(struct subscription *s, uint16_t h) {
+	s->hops = h;
+}
+
 void
 subscription_clean(void) {
 	struct subscription_item *si;
@@ -144,8 +156,12 @@ subscription_is_unsubscribed(struct subscription_item *si) {
 }
 
 int
-subscription_is_stale(struct subscription_item *si) {
+subscription_is_removable(struct subscription_item *si) {
 	return (si->last_heard + 12*(si->sub.period/CLOCK_SECOND) < clock_seconds());
+}
+int
+subscription_is_stale(struct subscription_item *si) {
+	return (si->last_heard + 4*(si->sub.period/CLOCK_SECOND) < clock_seconds());
 }
 
 int
@@ -299,7 +315,8 @@ message_is_published_to_me(void) {
 
 int
 subscription_is_too_far(struct subscription *s) {
-	return (s->period < (s->hops + 1) * s->slot_size);
+	return ((s->hops + 1 > MWARE_INFINITE_HOPS) ||
+		(s->period < (s->hops + 1) * s->slot_size));
 }
 
 void
@@ -308,26 +325,24 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 	struct subscription_item *si;
 	switch(packetbuf_attr(PACKETBUF_ATTR_PACKET_TYPE)) {
 	case MWARE_MSG_SUB:
-		if (subscription_is_too_far(&(packetbuf_msg_sub())->sub)) {
-		break;
-		}
 		si = subscription_get(&(packetbuf_msg_sub())->id);
 		if (si != NULL) {
 			if (subscription_is_unsubscribed(si)) {
 				subscription_reset_last_shout(si);
 			} else {
-				subscription_update_last_heard(si);
-				if (!subscription_update(si, (rimeaddr_t *) from,
+				if (!subscription_update(si, from,
 							(packetbuf_msg_sub())->sub.hops + 1)) {
 					si = NULL;
 
 				}
 			}
-		} else  {
-			si = subscription_insert(&(packetbuf_msg_sub())->id,
+		} else if (!subscription_is_too_far(&(packetbuf_msg_sub())->sub)) {
+			const rimeaddr_t * parent;
+			parent = (identifier_is_mine(&(packetbuf_msg_sub())->id) ? &rimeaddr_null : from);
+			si = subscription_insert(
+					&(packetbuf_msg_sub())->id,
 					&(packetbuf_msg_sub())->sub,
-					( identifier_is_mine(&(packetbuf_msg_sub())->id) ?
-					  &rimeaddr_null : (rimeaddr_t *) from),
+					parent,
 					(packetbuf_msg_sub())->sub.hops + 1);
 		}
 		if (si != NULL) {
@@ -341,12 +356,13 @@ packet_received(struct broadcast_conn *connection, const rimeaddr_t *from)
 		if (si == NULL || subscription_is_unsubscribed(si)) {
 			break;
 		}
-		if (message_is_published_to_me()) {
+		if (rimeaddr_cmp(&si->next_hop, from)) {	
+			subscription_update_last_heard(si);
+		} else if (message_is_published_to_me()) {
 			subscription_data_input(si,
 					(packetbuf_msg_pub())->data,
 					(packetbuf_msg_pub())->node_count);
 		}
-		subscription_update_last_heard(si);
 		break;
 	case MWARE_MSG_UNSUB:
 		si = subscription_get(&(packetbuf_msg_unsub())->id);
@@ -366,10 +382,12 @@ static const struct broadcast_callbacks connection_cb = { packet_received };
 static void
 mware_service_item(void *p) {
 	struct subscription_item *si = (struct subscription_item *) p;
-	if (subscription_is_stale(si) &&
+	if (subscription_is_removable(si) &&
 			(!identifier_is_mine(&si->id) || subscription_is_unsubscribed(si))) {
 		subscription_remove(si);
 		return;
+	} else if (subscription_is_stale(si) && !identifier_is_mine(&si->id)) {
+		subscription_set_hops(&si->sub, MWARE_INFINITE_HOPS);	
 	}
 	//NOTE: No jitter means ready to sense, else ready to publish
 	if (subscription_get_jitter(&si->sub) > 0) {
@@ -385,7 +403,9 @@ mware_service_item(void *p) {
 				callback->publish(&si->id,&si->sub,
 						subscription_data_output(si));
 			}
-			broadcast_publication(si);
+			if (!subscription_is_too_far(&si->sub)) {	
+				broadcast_publication(si);
+			}
 			subscription_data_reset(si);
 			if (subscription_needs_broadcast(si)) {
 				broadcast_subscription(si);

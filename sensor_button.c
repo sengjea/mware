@@ -56,7 +56,7 @@ sense_callback(struct identifier *i, struct subscription *s) {
   case ACCELEROMETER:
     break;
   } 
-  PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
+  //PRINTF("sense(i:%d, e:%d) = %lu\n", i->id, s->epoch, value); 
   leds_toggle(LEDS_YELLOW);
 }
 static void

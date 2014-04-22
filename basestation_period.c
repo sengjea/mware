@@ -49,7 +49,7 @@ sense_callback(struct identifier *i, struct subscription *s) {
 }
 static void
 publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
-	PRINTF("publish(i:%d e:%d, v:%d)\n",i->id,s->epoch, value);
+	PRINTF("iev, %d, %d, %d\n",i->id,s->epoch, value);
 }
 static int
 modify_test(struct identifier *id, struct subscription *s) {

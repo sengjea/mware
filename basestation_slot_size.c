@@ -49,7 +49,7 @@ sense_callback(struct identifier *i, struct subscription *s) {
 }
 static void
 publish_callback(struct identifier *i, struct subscription *s, uint16_t value){
-	PRINTF("publish(i:%d e:%d, v:%d)\n",i->id,s->epoch, value);
+	PRINTF("iev, %d, %d, %d\n",i->id,s->epoch, value);
 }
 static int
 modify_test(struct identifier *id, struct subscription *s) {
@@ -57,7 +57,7 @@ modify_test(struct identifier *id, struct subscription *s) {
 	if (i >= 32) return 0;	
 	s->type = MAGNETOMETER;
 	s->aggregation = COUNT;	
-	s->period = 10*CLOCK_SECOND;	
+	s->period = 20*CLOCK_SECOND;	
 	s->slot_size = (i+1)*CLOCK_SECOND/16; 
 	id->id = i++; 
 	rimeaddr_copy(&id->subscriber, &rimeaddr_node_addr); 
